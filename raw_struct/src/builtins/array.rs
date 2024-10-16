@@ -13,10 +13,10 @@ use core::{
 };
 
 use crate::{
-    view::MemoryViewEx,
     AccessError,
     AccessMode,
     Copy,
+    FromMemoryView,
     MemoryView,
     Reference,
     Viewable,
@@ -28,10 +28,10 @@ pub trait Array<T: ?Sized> {
 
 pub trait SizedArray<T: ?Sized, const N: usize>: Array<T> {}
 
-impl<T: marker::Copy> dyn Array<T> {
+impl<T: FromMemoryView> dyn Array<T> {
     pub fn element_at(&self, memory: &dyn MemoryView, index: usize) -> Result<T, AccessError> {
         let offset = (index * mem::size_of::<T>()) as u64;
-        T::from_memory(memory, self.start_address() + offset).map_err(|err| AccessError {
+        T::read_object(memory, self.start_address() + offset).map_err(|err| AccessError {
             source: err,
             offset: self.start_address() + offset,
             size: mem::size_of::<T>(),
@@ -56,14 +56,16 @@ impl<T: marker::Copy> dyn Array<T> {
             );
             let offset = self.start_address() + (range.start * mem::size_of::<T>()) as u64;
 
-            memory.read(offset, buffer).map_err(|err| AccessError {
-                source: err,
-                offset,
-                size: buffer.len(),
-                mode: AccessMode::Read,
-                object: "[..]".into(),
-                member: Some(format!("[{:#?}]", range).into()),
-            })?;
+            memory
+                .read_memory(offset, buffer)
+                .map_err(|err| AccessError {
+                    source: err,
+                    offset,
+                    size: buffer.len(),
+                    mode: AccessMode::Read,
+                    object: "[..]".into(),
+                    member: Some(format!("[{:#?}]", range).into()),
+                })?;
 
             result.set_len(element_count);
         };
@@ -92,15 +94,18 @@ impl<T: ?Sized + Viewable<T>> dyn Array<T> {
     }
 }
 
-impl<T: ?Sized + Viewable<T>> dyn Array<T> {
+impl<T: ?Sized + Viewable<T>> dyn Array<T>
+where
+    T::Implementation<T::Memory>: marker::Copy,
+{
     pub fn element_copy(
         &self,
         memory: &dyn MemoryView,
         index: usize,
     ) -> Result<Copy<T>, AccessError> {
         let offset = (index * T::MEMORY_SIZE) as u64;
-        Ok(Copy::new(
-            T::Memory::from_memory(memory, self.start_address() + offset).map_err(|err| {
+        Ok(
+            Copy::read_object(memory, self.start_address() + offset).map_err(|err| {
                 AccessError {
                     source: err,
                     offset: self.start_address() + offset,
@@ -110,7 +115,7 @@ impl<T: ?Sized + Viewable<T>> dyn Array<T> {
                     member: Some(format!("[{}]", index).into()),
                 }
             })?,
-        ))
+        )
     }
 
     pub fn elements_copy(
@@ -128,14 +133,16 @@ impl<T: ?Sized + Viewable<T>> dyn Array<T> {
             );
             let offset = self.start_address() + (range.start * T::MEMORY_SIZE) as u64;
 
-            memory.read(offset, buffer).map_err(|err| AccessError {
-                source: err,
-                offset,
-                size: buffer.len(),
-                mode: AccessMode::Read,
-                object: "[..]".into(),
-                member: Some(format!("[{:#?}]", range).into()),
-            })?;
+            memory
+                .read_memory(offset, buffer)
+                .map_err(|err| AccessError {
+                    source: err,
+                    offset,
+                    size: buffer.len(),
+                    mode: AccessMode::Read,
+                    object: "[..]".into(),
+                    member: Some(format!("[{:#?}]", range).into()),
+                })?;
 
             result.set_len(element_count);
         };

@@ -12,6 +12,7 @@ use raw_struct::{
     },
     raw_struct,
     Copy,
+    FromMemoryView,
     Reference,
 };
 
@@ -28,7 +29,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     {
-        let object = Copy::<dyn MyStruct>::from_memory(&*memory, 0x00)?;
+        let object = Copy::<dyn MyStruct>::read_object(&*memory, 0x00)?;
         println!("field_a = {}", object.field_a()?);
         println!("field_b = {}", object.field_b()?);
     }
@@ -64,6 +65,10 @@ struct MyStruct {
     /// Advanced array to other raw_structs
     #[field(offset = 0x18)]
     pub field_f: Ptr64<dyn Array<dyn MyStruct>>,
+
+    /// Advanced array to other raw_structs
+    #[field(offset = 0x18)]
+    pub field_fb: Ptr64<dyn Array<u64>>,
 
     #[field(offset = 0x20)]
     pub field_g: [u8; 0x20],

@@ -170,10 +170,10 @@ fn generate_reference_accessors(
             #(#attrs)*
             #[must_use]
             fn #name (&self) -> Result<#ty, raw_struct::AccessError> {
-                use raw_struct::{ AccessMode, MemoryViewEx };
+                use raw_struct::{ AccessMode, FromMemoryView };
 
                 let offset = #offset;
-                <#ty as MemoryViewEx>::from_memory(self.object_memory(), offset).map_err(|err| raw_struct::AccessError {
+                <#ty as FromMemoryView>::read_object(self.object_memory(), offset).map_err(|err| raw_struct::AccessError {
                     object: concat!(module_path!(), "::", #obj_name).into(),
                     member: Some(#name_str .into()),
 
@@ -266,7 +266,7 @@ pub fn raw_struct(attr: TokenStream, input: TokenStream) -> Result<TokenStream> 
         impl #impl_impl_generics raw_struct::ViewableImplementation<MemoryViewT, dyn #struct_name #ty_generics>
             for #impl_name #impl_ty_generics #impl_where_clause
         {
-            fn object_memory(&self) -> &MemoryViewT {
+            fn memory(&self) -> &MemoryViewT {
                 &self.0
             }
 

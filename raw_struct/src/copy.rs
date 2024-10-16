@@ -1,20 +1,11 @@
 use core::{
     marker,
-    mem::{
-        self,
-        MaybeUninit,
-    },
+    mem::MaybeUninit,
     ops::Deref,
 };
 
 use crate::{
-    error::AccessMode,
-    view::{
-        MemoryViewEx,
-        Viewable,
-    },
-    AccessError,
-    MemoryView,
+    view::Viewable,
     ViewableImplementation,
 };
 
@@ -36,21 +27,6 @@ impl<T: ?Sized + Viewable<T>> Copy<T> {
     /// behaviour as the internal state of the object may be invalid.
     pub unsafe fn new_zerod() -> Self {
         Self::new(MaybeUninit::zeroed().assume_init())
-    }
-
-    pub fn from_memory(memory_view: &dyn MemoryView, address: u64) -> Result<Self, AccessError> {
-        let memory = T::Memory::from_memory(memory_view, address).map_err(|err| AccessError {
-            source: err,
-
-            offset: address,
-            size: mem::size_of::<T::Memory>(),
-            mode: AccessMode::Read,
-
-            object: T::name(),
-            member: None,
-        })?;
-
-        Ok(Copy::new(memory))
     }
 }
 

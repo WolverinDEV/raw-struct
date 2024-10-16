@@ -16,8 +16,8 @@ use crate::{
     AccessError,
     AccessMode,
     Copy,
+    FromMemoryView,
     MemoryView,
-    MemoryViewEx,
     Reference,
     Viewable,
 };
@@ -55,7 +55,7 @@ impl<T: ?Sized + Viewable<T>> Ptr64<T> {
     pub fn value_copy(&self, memory: &dyn MemoryView) -> Result<Option<Copy<T>>, AccessError> {
         if self.address > 0 {
             let memory =
-                T::Memory::from_memory(memory, self.address).map_err(|err| AccessError {
+                T::Memory::read_object(memory, self.address).map_err(|err| AccessError {
                     source: err,
 
                     member: None,
