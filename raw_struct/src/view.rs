@@ -1,5 +1,4 @@
 use alloc::borrow::Cow;
-use core;
 
 use crate::memory::MemoryView;
 

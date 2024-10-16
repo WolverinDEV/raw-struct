@@ -104,18 +104,14 @@ where
         index: usize,
     ) -> Result<Copy<T>, AccessError> {
         let offset = (index * T::MEMORY_SIZE) as u64;
-        Ok(
-            Copy::read_object(memory, self.start_address() + offset).map_err(|err| {
-                AccessError {
-                    source: err,
-                    offset: self.start_address() + offset,
-                    size: T::MEMORY_SIZE,
-                    mode: AccessMode::Read,
-                    object: format!("[{}]", T::name()).into(),
-                    member: Some(format!("[{}]", index).into()),
-                }
-            })?,
-        )
+        Copy::read_object(memory, self.start_address() + offset).map_err(|err| AccessError {
+            source: err,
+            offset: self.start_address() + offset,
+            size: T::MEMORY_SIZE,
+            mode: AccessMode::Read,
+            object: format!("[{}]", T::name()).into(),
+            member: Some(format!("[{}]", index).into()),
+        })
     }
 
     pub fn elements_copy(

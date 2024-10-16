@@ -33,10 +33,7 @@ where
 
 impl<T: ?Sized + 'static> Clone for Ptr64<T> {
     fn clone(&self) -> Self {
-        Self {
-            address: self.address,
-            _dummy: Default::default(),
-        }
+        *self
     }
 }
 impl<T: ?Sized + 'static> marker::Copy for Ptr64<T> {}
@@ -51,7 +48,8 @@ impl<T: ?Sized + Viewable<T>> Ptr64<T> {
         }
     }
 
-    #[must_use]
+    /// Create a copy of the value the pointer points to
+    #[must_use = "copied result must be used"]
     pub fn value_copy(&self, memory: &dyn MemoryView) -> Result<Option<Copy<T>>, AccessError> {
         if self.address > 0 {
             let memory =
