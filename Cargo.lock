@@ -29,14 +29,14 @@ dependencies = [
 
 [[package]]
 name = "raw_struct"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "raw_struct_derive",
 ]
 
 [[package]]
 name = "raw_struct_derive"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "proc-macro2",
  "quote",

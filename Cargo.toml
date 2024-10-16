@@ -3,7 +3,7 @@ resolver = "2"
 members = ["raw_struct", "raw_struct_derive", "examples/minimal"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Markus Hadenfeldt <mhadenfeldt@did.science>"]
 description = "raw_struct is a Rust procedural macro for easily declaring C-style structs that reference local or external memory, based on your memory implementation. It generates appropiate getter methods for easy access."
