@@ -11,3 +11,6 @@ readme = "../README.MD"
 
 [dependencies]
 raw_struct_derive = { version = "0.1", path = "../raw_struct_derive" }
+
+[features]
+no_std = []

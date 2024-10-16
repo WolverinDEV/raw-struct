@@ -4,12 +4,14 @@ use alloc::{
 };
 use core::{
     self,
-    error::Error,
     ops::Deref,
 };
 
 use crate::{
-    error::AccessError,
+    error::{
+        self,
+        AccessError,
+    },
     view::{
         MemoryView,
         ViewableImplementation,
@@ -34,7 +36,7 @@ impl ReferenceMemory {
 }
 
 impl MemoryView for ReferenceMemory {
-    fn read(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Box<dyn Error>> {
+    fn read(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Box<dyn error::ErrorType>> {
         self.inner.read(self.address + offset, buffer)
     }
 }

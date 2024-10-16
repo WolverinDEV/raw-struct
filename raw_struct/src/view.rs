@@ -4,7 +4,6 @@ use alloc::{
 };
 use core::{
     self,
-    error::Error,
     mem::{
         self,
         MaybeUninit,
@@ -12,10 +11,13 @@ use core::{
     slice,
 };
 
-use crate::error::AccessViolation;
+use crate::error::{
+    self,
+    AccessViolation,
+};
 
 pub trait MemoryView {
-    fn read(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Box<dyn Error>>;
+    fn read(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Box<dyn error::ErrorType>>;
 }
 
 impl<T: Copy> MemoryView for T {
@@ -23,7 +25,7 @@ impl<T: Copy> MemoryView for T {
         &self,
         offset: u64,
         buffer: &mut [u8],
-    ) -> Result<(), alloc::boxed::Box<dyn core::error::Error>> {
+    ) -> Result<(), alloc::boxed::Box<dyn error::ErrorType>> {
         let src_buffer = unsafe {
             core::slice::from_raw_parts(self as *const _ as *const u8, core::mem::size_of_val(self))
         };
@@ -39,17 +41,11 @@ impl<T: Copy> MemoryView for T {
 }
 
 pub trait MemoryViewEx: Sized {
-    fn from_memory(view: &dyn MemoryView, offset: u64) -> Result<Self, Box<dyn Error>>;
-    fn from_memory_boxed(view: &dyn MemoryView, offset: u64) -> Result<Box<Self>, Box<dyn Error>>;
-    fn from_memory_boxed_in(
-        view: &dyn MemoryView,
-        offset: u64,
-        target: &mut Box<Self>,
-    ) -> Result<(), Box<dyn Error>>;
+    fn from_memory(view: &dyn MemoryView, offset: u64) -> Result<Self, Box<dyn error::ErrorType>>;
 }
 
 impl<T: Copy> MemoryViewEx for T {
-    fn from_memory(view: &dyn MemoryView, offset: u64) -> Result<Self, Box<dyn Error>> {
+    fn from_memory(view: &dyn MemoryView, offset: u64) -> Result<Self, Box<dyn error::ErrorType>> {
         let mut result = MaybeUninit::uninit();
         let size = mem::size_of_val(&result);
 
@@ -57,26 +53,6 @@ impl<T: Copy> MemoryViewEx for T {
         view.read(offset, buffer)?;
 
         Ok(unsafe { result.assume_init() })
-    }
-
-    fn from_memory_boxed(view: &dyn MemoryView, offset: u64) -> Result<Box<Self>, Box<dyn Error>> {
-        let mut result = Box::new_uninit();
-        MaybeUninit::<T>::from_memory_boxed_in(view, offset, &mut result)?;
-        Ok(unsafe { result.assume_init() })
-    }
-
-    fn from_memory_boxed_in(
-        view: &dyn MemoryView,
-        offset: u64,
-        target: &mut Box<Self>,
-    ) -> Result<(), Box<dyn Error>> {
-        let size = mem::align_of::<Self>();
-
-        let buffer =
-            unsafe { slice::from_raw_parts_mut(target.as_mut() as *mut _ as *mut u8, size) };
-        view.read(offset, buffer)?;
-
-        Ok(())
     }
 }
 

@@ -3,10 +3,11 @@ use alloc::{
     boxed::Box,
     format,
 };
-use core::{
-    error::Error,
-    fmt,
-};
+#[cfg(feature = "no_std")]
+pub use core::error::Error as ErrorType;
+use core::fmt;
+#[cfg(not(feature = "no_std"))]
+pub use std::error::Error as ErrorType;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum AccessMode {
@@ -32,11 +33,11 @@ impl fmt::Display for AccessViolation {
     }
 }
 
-impl Error for AccessViolation {}
+impl ErrorType for AccessViolation {}
 
 #[derive(Debug)]
 pub struct AccessError {
-    pub source: Box<dyn Error + 'static>,
+    pub source: Box<dyn ErrorType + 'static>,
 
     pub offset: u64,
     pub size: usize,
@@ -64,8 +65,8 @@ impl fmt::Display for AccessError {
     }
 }
 
-impl Error for AccessError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
+impl ErrorType for AccessError {
+    fn source(&self) -> Option<&(dyn ErrorType + 'static)> {
         Some(&*self.source)
     }
 }
