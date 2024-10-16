@@ -40,7 +40,7 @@ impl MemoryView for ReferenceMemory {
 }
 
 /// A reference to an object living in the underlying memory view.
-pub struct Reference<T: Viewable<T> + ?Sized> {
+pub struct Reference<T: ?Sized + Viewable<T>> {
     inner: T::Implementation<ReferenceMemory>,
 }
 
@@ -64,6 +64,10 @@ impl<T: Viewable<T> + ?Sized> Reference<T> {
 
     pub fn copy(&self) -> Result<Copy<T>, AccessError> {
         Copy::from_memory(self.inner.object_memory(), 0x00)
+    }
+
+    pub fn cast<V: ?Sized + Viewable<V>>(&self) -> Reference<V> {
+        Reference::<V>::new(self.reference_memory().clone(), self.reference_address())
     }
 }
 

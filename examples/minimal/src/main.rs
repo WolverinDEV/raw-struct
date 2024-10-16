@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 #[raw_struct(size = 0x08)]
 struct MyArrayElement {}
 
-#[raw_struct(size = 0x20)]
+#[raw_struct(size = 0x40)]
 struct MyStruct {
     /// u32 field located at offset 0
     #[field(offset = 0x00)]
@@ -67,7 +67,11 @@ struct MyStruct {
 
     #[field(offset = 0x20)]
     pub field_g: [u8; 0x20],
-
-    #[field(offset = 0x40)]
-    pub field_h: Copy<dyn MyArrayElement>,
 }
+
+#[raw_struct(size = 0x44)]
+struct MyStructExt {
+    #[field(offset = 0x40)]
+    pub ext_field_a: u32,
+}
+impl MyStruct for dyn MyStructExt {}
