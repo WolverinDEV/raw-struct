@@ -22,7 +22,7 @@ mod derive_raw_struct;
 ///   Defines a custom name for the field's getter method.
 ///
 /// # Example:
-/// ```no_run
+/// ```ignore
 /// #[raw_struct(size = 0x10)]
 /// struct MyStruct {
 ///     #[field(offset = 0x00)]
@@ -41,7 +41,7 @@ pub fn raw_struct(attr: TokenStream, input: TokenStream) -> TokenStream {
     let attr = parse_macro_input!(attr);
 
     derive_raw_struct::raw_struct(attr, input)
-        // .inspect(|result| println!("{}", result.to_string()))
+        .inspect(|result| println!("{}", result.to_string()))
         .unwrap_or_else(|e| e.to_compile_error())
         .into()
 }

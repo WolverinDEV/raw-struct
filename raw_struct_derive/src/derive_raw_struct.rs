@@ -173,9 +173,9 @@ fn generate_reference_accessors(
                 use raw_struct::{ AccessMode, MemoryViewEx };
 
                 let offset = #offset;
-                <#ty>::from_memory(self.object_memory(), offset).map_err(|err| raw_struct::AccessError {
+                <#ty as MemoryViewEx>::from_memory(self.object_memory(), offset).map_err(|err| raw_struct::AccessError {
                     object: concat!(module_path!(), "::", #obj_name).into(),
-                    member: Some(#name_str),
+                    member: Some(#name_str .into()),
 
                     offset,
                     size: core::mem::size_of::<#ty>(),
@@ -253,7 +253,7 @@ pub fn raw_struct(attr: TokenStream, input: TokenStream) -> Result<TokenStream> 
             #accessors
         }
 
-
+        #[derive(Clone, Copy)]
         #struct_vis struct #impl_name #impl_ty_generics (MemoryViewT, core::marker::PhantomData<(#(#ty_list,)*)>) #impl_where_clause;
         impl #impl_impl_generics #struct_name #ty_generics for #impl_name #impl_ty_generics #impl_where_clause {}
         impl #impl_impl_generics raw_struct::ViewableBase

@@ -45,7 +45,7 @@ pub struct Reference<T: Viewable<T> + ?Sized> {
 }
 
 impl<T: Viewable<T> + ?Sized> Reference<T> {
-    pub fn new(address: u64, memory: Arc<dyn MemoryView>) -> Self {
+    pub fn new(memory: Arc<dyn MemoryView>, address: u64) -> Self {
         Self {
             inner: T::create(ReferenceMemory {
                 address,
@@ -63,7 +63,7 @@ impl<T: Viewable<T> + ?Sized> Reference<T> {
     }
 
     pub fn copy(&self) -> Result<Copy<T>, AccessError> {
-        Copy::from_memory(self.inner.object_memory())
+        Copy::from_memory(self.inner.object_memory(), 0x00)
     }
 }
 

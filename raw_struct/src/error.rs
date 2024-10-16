@@ -43,7 +43,7 @@ pub struct AccessError {
     pub mode: AccessMode,
 
     pub object: Cow<'static, str>,
-    pub member: Option<&'static str>,
+    pub member: Option<Cow<'static, str>>,
 }
 
 impl fmt::Display for AccessError {

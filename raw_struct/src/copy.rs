@@ -1,4 +1,5 @@
 use core::{
+    marker,
     mem::{
         self,
         MaybeUninit,
@@ -18,12 +19,12 @@ use crate::{
 };
 
 /// A Copy represents an owned copy of the struct binary contents
-#[derive(Clone)]
-pub struct Copy<T: Viewable<T> + ?Sized> {
+#[repr(transparent)]
+pub struct Copy<T: ?Sized + Viewable<T>> {
     inner: T::Implementation<T::Memory>,
 }
 
-impl<T: Viewable<T> + ?Sized> Copy<T> {
+impl<T: ?Sized + Viewable<T>> Copy<T> {
     pub fn new(inner: T::Memory) -> Self {
         Self {
             inner: T::create(inner),
@@ -37,11 +38,11 @@ impl<T: Viewable<T> + ?Sized> Copy<T> {
         Self::new(MaybeUninit::zeroed().assume_init())
     }
 
-    pub fn from_memory(memory_view: &dyn MemoryView) -> Result<Self, AccessError> {
-        let memory = T::Memory::from_memory(memory_view, 0x00).map_err(|err| AccessError {
+    pub fn from_memory(memory_view: &dyn MemoryView, address: u64) -> Result<Self, AccessError> {
+        let memory = T::Memory::from_memory(memory_view, address).map_err(|err| AccessError {
             source: err,
 
-            offset: 0x00,
+            offset: address,
             size: mem::size_of::<T::Memory>(),
             mode: AccessMode::Read,
 
@@ -53,10 +54,29 @@ impl<T: Viewable<T> + ?Sized> Copy<T> {
     }
 }
 
-impl<T: Viewable<T> + ?Sized> Deref for Copy<T> {
+impl<T: ?Sized + Viewable<T>> Deref for Copy<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
         self.inner.as_trait()
     }
+}
+
+impl<T> Clone for Copy<T>
+where
+    T: ?Sized + Viewable<T>,
+    T::Implementation<T::Memory>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+        }
+    }
+}
+
+impl<T> marker::Copy for Copy<T>
+where
+    T: ?Sized + Viewable<T>,
+    T::Implementation<T::Memory>: marker::Copy,
+{
 }

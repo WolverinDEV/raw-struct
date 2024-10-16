@@ -40,6 +40,12 @@ impl<T: Copy> MemoryView for T {
 
 pub trait MemoryViewEx: Sized {
     fn from_memory(view: &dyn MemoryView, offset: u64) -> Result<Self, Box<dyn Error>>;
+    fn from_memory_boxed(view: &dyn MemoryView, offset: u64) -> Result<Box<Self>, Box<dyn Error>>;
+    fn from_memory_boxed_in(
+        view: &dyn MemoryView,
+        offset: u64,
+        target: &mut Box<Self>,
+    ) -> Result<(), Box<dyn Error>>;
 }
 
 impl<T: Copy> MemoryViewEx for T {
@@ -51,6 +57,26 @@ impl<T: Copy> MemoryViewEx for T {
         view.read(offset, buffer)?;
 
         Ok(unsafe { result.assume_init() })
+    }
+
+    fn from_memory_boxed(view: &dyn MemoryView, offset: u64) -> Result<Box<Self>, Box<dyn Error>> {
+        let mut result = Box::new_uninit();
+        MaybeUninit::<T>::from_memory_boxed_in(view, offset, &mut result)?;
+        Ok(unsafe { result.assume_init() })
+    }
+
+    fn from_memory_boxed_in(
+        view: &dyn MemoryView,
+        offset: u64,
+        target: &mut Box<Self>,
+    ) -> Result<(), Box<dyn Error>> {
+        let size = mem::align_of::<Self>();
+
+        let buffer =
+            unsafe { slice::from_raw_parts_mut(target.as_mut() as *mut _ as *mut u8, size) };
+        view.read(offset, buffer)?;
+
+        Ok(())
     }
 }
 
@@ -66,6 +92,8 @@ pub trait ViewableImplementation<M: MemoryView, T: ?Sized> {
 pub trait Viewable<T: ?Sized>: 'static {
     type Memory: Copy + MemoryView;
     type Implementation<M: MemoryView + 'static>: ViewableImplementation<M, T>;
+
+    const MEMORY_SIZE: usize = core::mem::size_of::<Self::Memory>();
 
     fn create<M: MemoryView + 'static>(memory: M) -> Self::Implementation<M>;
     fn name() -> Cow<'static, str>;
