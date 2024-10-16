@@ -110,7 +110,7 @@ impl Parse for StructArgs {
     }
 }
 
-fn extract_struct_fields<'a>(fields: &Fields) -> Result<Vec<(FieldArgs, Field)>> {
+fn extract_struct_fields(fields: &Fields) -> Result<Vec<(FieldArgs, Field)>> {
     match fields {
         Fields::Named(fields) => {
             let mut result = Vec::with_capacity(fields.named.len());
@@ -138,7 +138,7 @@ fn extract_struct_fields<'a>(fields: &Fields) -> Result<Vec<(FieldArgs, Field)>>
 
 fn generate_reference_accessors(
     obj_name: &str,
-    fields: &Vec<(FieldArgs, Field)>,
+    fields: &[(FieldArgs, Field)],
 ) -> Result<TokenStream> {
     let mut result = Vec::<TokenStream>::with_capacity(fields.len() * 2);
 
@@ -170,7 +170,7 @@ fn generate_reference_accessors(
             #(#attrs)*
             #[must_use]
             fn #name (&self) -> Result<#ty, raw_struct::AccessError> {
-                use raw_struct::MemoryViewEx;
+                use raw_struct::{ AccessMode, MemoryViewEx };
 
                 let offset = #offset;
                 <#ty>::from_memory(self.object_memory(), offset).map_err(|err| raw_struct::AccessError {
@@ -179,7 +179,7 @@ fn generate_reference_accessors(
 
                     offset,
                     size: core::mem::size_of::<#ty>(),
-                    mode: raw_struct::AccessMode::Read,
+                    mode: AccessMode::Read,
 
                     source: err,
                 })
@@ -195,7 +195,7 @@ fn generate_reference_accessors(
 
 pub fn raw_struct(attr: TokenStream, input: TokenStream) -> Result<TokenStream> {
     let args = syn::parse2::<StructArgs>(attr)?;
-    let mut target = syn::parse2::<ItemStruct>(input)?;
+    let target = syn::parse2::<ItemStruct>(input)?;
 
     let struct_size = args.size;
     let struct_name = target.ident.clone();
@@ -213,7 +213,7 @@ pub fn raw_struct(attr: TokenStream, input: TokenStream) -> Result<TokenStream> 
         })
         .collect::<Result<Vec<_>>>()?;
 
-    let fields = extract_struct_fields(&mut target.fields)?;
+    let fields = extract_struct_fields(&target.fields)?;
     let accessors = generate_reference_accessors(&struct_name_str, &fields)?;
 
     let generics = target.generics.clone();
@@ -229,7 +229,7 @@ pub fn raw_struct(attr: TokenStream, input: TokenStream) -> Result<TokenStream> 
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let impl_name = Ident::new(
-        &format!("{}Implementation", struct_name.to_string()),
+        &format!("{}Implementation", struct_name),
         struct_name.span(),
     );
 

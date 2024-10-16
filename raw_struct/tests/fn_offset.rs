@@ -16,7 +16,7 @@ struct Dummy {
 
 static FN_CALLED: AtomicBool = AtomicBool::new(false);
 fn get_offset() -> u64 {
-    assert_eq!(FN_CALLED.load(Ordering::Relaxed), false);
+    assert!(!FN_CALLED.load(Ordering::Relaxed));
     FN_CALLED.store(true, Ordering::Relaxed);
 
     0x00
@@ -24,8 +24,8 @@ fn get_offset() -> u64 {
 
 #[test]
 fn test() {
-    assert_eq!(FN_CALLED.load(Ordering::Relaxed), false);
+    assert!(!FN_CALLED.load(Ordering::Relaxed));
     let value = Copy::<dyn Dummy>::new([0x0; 0x10]);
     value.field_01().unwrap();
-    assert_eq!(FN_CALLED.load(Ordering::Relaxed), true);
+    assert!(FN_CALLED.load(Ordering::Relaxed));
 }

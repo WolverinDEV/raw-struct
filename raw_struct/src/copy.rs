@@ -30,12 +30,11 @@ impl<T: Viewable<T> + ?Sized> Copy<T> {
         }
     }
 
+    /// # Safety
+    /// Creating a new instance of the target object based of zeros can lead to undefined
+    /// behaviour as the internal state of the object may be invalid.
     pub unsafe fn new_zerod() -> Self {
         Self::new(MaybeUninit::zeroed().assume_init())
-    }
-
-    pub unsafe fn new_uninitialized() -> Self {
-        Self::new(MaybeUninit::uninit().assume_init())
     }
 
     pub fn from_memory(memory_view: &dyn MemoryView) -> Result<Self, AccessError> {

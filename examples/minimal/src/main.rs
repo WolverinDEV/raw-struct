@@ -16,7 +16,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     memory[4..8].copy_from_slice(&0x99u32.to_le_bytes());
 
     {
-        let object = Reference::<dyn MyStruct>::new(0x00, Arc::new(memory.clone()));
+        let object = Reference::<dyn MyStruct>::new(0x00, Arc::new(memory));
         println!("field_a = {}", object.field_a()?);
         println!("field_b = {}", object.field_b()?);
     }

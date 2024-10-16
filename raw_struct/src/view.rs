@@ -44,13 +44,13 @@ pub trait MemoryViewEx: Sized {
 
 impl<T: Copy> MemoryViewEx for T {
     fn from_memory(view: &dyn MemoryView, offset: u64) -> Result<Self, Box<dyn Error>> {
-        let mut result = unsafe { MaybeUninit::uninit().assume_init() };
+        let mut result = MaybeUninit::uninit();
         let size = mem::size_of_val(&result);
 
         let buffer = unsafe { slice::from_raw_parts_mut(&mut result as *mut _ as *mut u8, size) };
         view.read(offset, buffer)?;
 
-        Ok(result)
+        Ok(unsafe { result.assume_init() })
     }
 }
 
