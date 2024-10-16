@@ -3,6 +3,13 @@
 version = 3
 
 [[package]]
+name = "example-dyn-memory"
+version = "0.1.0"
+dependencies = [
+ "raw_struct",
+]
+
+[[package]]
 name = "example-minimal"
 version = "0.1.0"
 dependencies = [
@@ -29,14 +36,14 @@ dependencies = [
 
 [[package]]
 name = "raw_struct"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "raw_struct_derive",
 ]
 
 [[package]]
 name = "raw_struct_derive"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "proc-macro2",
  "quote",

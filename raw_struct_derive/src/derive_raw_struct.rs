@@ -11,7 +11,7 @@ use syn::{
     punctuated::Punctuated,
     spanned::Spanned,
     Error,
-    ExprCall,
+    Expr,
     Field,
     Fields,
     GenericParam,
@@ -47,10 +47,10 @@ impl Parse for FieldArgs {
             if kv.path.is_ident("offset") {
                 match &kv.lit {
                     Lit::Int(value) => {
-                        offset = Some(value.base10_parse::<u64>()?.to_token_stream())
+                        offset = Some(value.base10_parse::<usize>()?.to_token_stream())
                     }
-                    Lit::Str(value) => offset = Some(value.parse::<ExprCall>()?.to_token_stream()),
-                    _ => return Err(Error::new(kv.lit.span(), "expected an interger")),
+                    Lit::Str(value) => offset = Some(value.parse::<Expr>()?.to_token_stream()),
+                    _ => return Err(Error::new(kv.lit.span(), "expected an interger or string")),
                 }
             } else if kv.path.is_ident("getter") {
                 let Lit::Str(value) = &kv.lit else {
@@ -80,32 +80,42 @@ impl Parse for FieldArgs {
 
 #[derive(Debug)]
 struct StructArgs {
-    size: usize,
+    memory: TokenStream,
 }
 
 impl Parse for StructArgs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let input_span = input.span();
-        let vars = [MetaNameValue::parse(input)?];
-        // let vars: Punctuated<MetaNameValue, syn::token::Comma> =
-        //     Punctuated::<MetaNameValue, Token![,]>::parse_terminated(input)?;
+        let vars: Punctuated<MetaNameValue, syn::token::Comma> =
+            Punctuated::<MetaNameValue, Token![,]>::parse_terminated(input)?;
 
         let mut size = None;
+        let mut memory = None;
 
         for kv in &vars {
             if kv.path.is_ident("size") {
-                let Lit::Int(value) = &kv.lit else {
-                    return Err(Error::new(kv.lit.span(), "expected an interger"));
-                };
-
-                size = Some(value.base10_parse()?);
+                match &kv.lit {
+                    Lit::Int(value) => {
+                        size = Some(value.base10_parse::<usize>()?.to_token_stream())
+                    }
+                    Lit::Str(value) => size = Some(value.parse::<Expr>()?.to_token_stream()),
+                    _ => return Err(Error::new(kv.lit.span(), "expected an interger or string")),
+                }
+            } else if kv.path.is_ident("memory") {
+                match &kv.lit {
+                    Lit::Str(value) => memory = Some(value.parse::<Expr>()?.to_token_stream()),
+                    _ => return Err(Error::new(kv.lit.span(), "expected a string")),
+                }
             } else {
                 return Err(Error::new(kv.path.span(), "unknown attribute"));
             }
         }
 
+        let size = size.map(|size: TokenStream| quote::quote!([u8; #size]).to_token_stream());
         Ok(Self {
-            size: size.ok_or(Error::new(input_span, "missing size = \"...\" attribute"))?,
+            memory: memory
+                .or(size)
+                .ok_or(Error::new(input_span, "missing size = \"...\" attribute"))?,
         })
     }
 }
@@ -172,7 +182,7 @@ fn generate_reference_accessors(
             fn #name (&self) -> Result<#ty, raw_struct::AccessError> {
                 use raw_struct::{ AccessMode, FromMemoryView };
 
-                let offset = #offset;
+                let offset = (#offset) as u64;
                 <#ty as FromMemoryView>::read_object(self.object_memory(), offset).map_err(|err| raw_struct::AccessError {
                     object: concat!(module_path!(), "::", #obj_name).into(),
                     member: Some(#name_str .into()),
@@ -197,7 +207,6 @@ pub fn raw_struct(attr: TokenStream, input: TokenStream) -> Result<TokenStream> 
     let args = syn::parse2::<StructArgs>(attr)?;
     let target = syn::parse2::<ItemStruct>(input)?;
 
-    let struct_size = args.size;
     let struct_name = target.ident.clone();
     let struct_name_str = format!("{}", target.ident);
 
@@ -246,6 +255,7 @@ pub fn raw_struct(attr: TokenStream, input: TokenStream) -> Result<TokenStream> 
     let (impl_impl_generics, impl_ty_generics, impl_where_clause) =
         impl_ty_generics.split_for_impl();
 
+    let struct_memory = args.memory;
     let struct_vis = target.vis;
     Ok(quote! {
         #(#struct_attrs)*
@@ -277,7 +287,7 @@ pub fn raw_struct(attr: TokenStream, input: TokenStream) -> Result<TokenStream> 
 
 
         impl #impl_generics raw_struct::Viewable<dyn #struct_name #ty_generics> for dyn #struct_name #ty_generics + 'static #where_clause {
-            type Memory = [u8; #struct_size];
+            type Memory = #struct_memory;
             type Implementation<MemoryViewT: raw_struct::MemoryView + 'static> = #impl_name #impl_ty_generics;
 
             fn create<M: raw_struct::MemoryView + 'static>(memory: M) -> Self::Implementation<M> {

@@ -14,12 +14,18 @@ use raw_struct::{
     Copy,
     FromMemoryView,
     Reference,
+    Viewable,
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut memory = [0u8; 0x20];
     memory[0..4].copy_from_slice(&0x6Fu32.to_le_bytes());
     memory[4..8].copy_from_slice(&0x99u32.to_le_bytes());
+
+    println!(
+        "{}",
+        <dyn MyStruct as Viewable::<dyn MyStruct>>::MEMORY_SIZE
+    );
 
     let memory = Arc::new(memory);
     {
