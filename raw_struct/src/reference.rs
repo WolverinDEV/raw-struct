@@ -1,7 +1,4 @@
-use alloc::{
-    boxed::Box,
-    sync::Arc,
-};
+use alloc::sync::Arc;
 use core::{
     self,
     marker,
@@ -10,8 +7,8 @@ use core::{
 
 use crate::{
     error::{
-        self,
         AccessError,
+        Error,
     },
     memory::MemoryView,
     view::ViewableImplementation,
@@ -37,7 +34,7 @@ impl ReferenceMemory {
 }
 
 impl MemoryView for ReferenceMemory {
-    fn read_memory(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Box<dyn error::ErrorType>> {
+    fn read_memory(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Error> {
         self.inner.read_memory(self.address + offset, buffer)
     }
 }

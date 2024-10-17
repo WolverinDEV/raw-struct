@@ -8,20 +8,16 @@ use core::{
 };
 
 use crate::error::{
-    self,
     AccessViolation,
+    Error,
 };
 
 pub trait MemoryView {
-    fn read_memory(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Box<dyn error::ErrorType>>;
+    fn read_memory(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Error>;
 }
 
 impl<T: Copy> MemoryView for T {
-    fn read_memory(
-        &self,
-        offset: u64,
-        buffer: &mut [u8],
-    ) -> Result<(), alloc::boxed::Box<dyn error::ErrorType>> {
+    fn read_memory(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Error> {
         let src_buffer = unsafe {
             core::slice::from_raw_parts(self as *const _ as *const u8, core::mem::size_of_val(self))
         };
@@ -37,12 +33,12 @@ impl<T: Copy> MemoryView for T {
 }
 
 pub trait FromMemoryView: Sized {
-    fn read_object(view: &dyn MemoryView, offset: u64) -> Result<Self, Box<dyn error::ErrorType>>;
+    fn read_object(view: &dyn MemoryView, offset: u64) -> Result<Self, Error>;
     // fn read_boxed(view: &dyn MemoryView, offset: u64) -> Result<Box<Self>, Box<dyn error::ErrorType>>;
 }
 
 impl<T: Copy> FromMemoryView for T {
-    fn read_object(view: &dyn MemoryView, offset: u64) -> Result<Self, Box<dyn error::ErrorType>> {
+    fn read_object(view: &dyn MemoryView, offset: u64) -> Result<Self, Error> {
         let mut result = MaybeUninit::uninit();
         let size = mem::size_of_val(&result);
 

@@ -9,6 +9,8 @@ use core::fmt;
 #[cfg(not(feature = "no_std"))]
 pub use std::error::Error as ErrorType;
 
+pub type Error = Box<dyn ErrorType + Send + Sync + 'static>;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum AccessMode {
     Read,
@@ -37,7 +39,7 @@ impl ErrorType for AccessViolation {}
 
 #[derive(Debug)]
 pub struct AccessError {
-    pub source: Box<dyn ErrorType + 'static>,
+    pub source: Error,
 
     pub offset: u64,
     pub size: usize,

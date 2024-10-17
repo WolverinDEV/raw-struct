@@ -11,7 +11,7 @@ use raw_struct::{
     Viewable,
 };
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let buffer = [0x1122u64, 0x8877, 0x9988];
     let object = Copy::<dyn Container<u64>>::read_object(&buffer, 0x00)?;
 
