@@ -24,9 +24,8 @@ use crate::{
 
 pub trait Array<T: ?Sized> {
     fn start_address(&self) -> u64;
+    fn len(&self) -> Option<usize>;
 }
-
-pub trait SizedArray<T: ?Sized, const N: usize>: Array<T> {}
 
 impl<T: FromMemoryView> dyn Array<T> {
     pub fn element_at(&self, memory: &dyn MemoryView, index: usize) -> Result<T, AccessError> {
@@ -144,5 +143,13 @@ where
         };
 
         Ok(result.into_iter().map(Copy::<T>::new).collect::<Vec<_>>())
+    }
+}
+
+pub trait SizedArray<T: ?Sized, const N: usize>: Array<T> {}
+
+impl<T: ?Sized, const N: usize> dyn SizedArray<T, N> {
+    pub fn len(&self) -> usize {
+        N
     }
 }
