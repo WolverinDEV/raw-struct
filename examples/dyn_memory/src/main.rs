@@ -28,7 +28,7 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 #[raw_struct(memory = "([u8; 0x10], T)")]
 struct Container<T>
 where
-    T: marker::Copy + 'static,
+    T: marker::Copy + Send + Sync + 'static,
 {
     #[field(offset = 0x00)]
     pub var_a: u64,

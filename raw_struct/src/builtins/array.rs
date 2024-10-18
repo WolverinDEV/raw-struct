@@ -22,8 +22,10 @@ use crate::{
     Viewable,
 };
 
+#[allow(clippy::len_without_is_empty)]
 pub trait Array<T: ?Sized> {
     fn start_address(&self) -> u64;
+
     fn len(&self) -> Option<usize>;
 }
 
