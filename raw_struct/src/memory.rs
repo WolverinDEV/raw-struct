@@ -12,11 +12,11 @@ use crate::error::{
     Error,
 };
 
-pub trait MemoryView {
+pub trait MemoryView: Send + Sync {
     fn read_memory(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Error>;
 }
 
-impl<T: Copy> MemoryView for T {
+impl<T: Copy + Send + Sync> MemoryView for T {
     fn read_memory(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Error> {
         let src_buffer = unsafe {
             core::slice::from_raw_parts(self as *const _ as *const u8, core::mem::size_of_val(self))
