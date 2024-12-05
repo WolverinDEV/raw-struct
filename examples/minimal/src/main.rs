@@ -1,6 +1,7 @@
 use std::{
     self,
     error::Error,
+    marker,
     sync::Arc,
 };
 
@@ -19,23 +20,29 @@ use raw_struct::{
 };
 
 fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
-    let mut memory = [0u8; 0x40];
+    let mut memory = [0u8; 0x80];
     memory[0..4].copy_from_slice(&0x6Fu32.to_le_bytes());
     memory[4..8].copy_from_slice(&0x99u32.to_le_bytes());
+    memory[0x40..0x44].copy_from_slice(&0xFF00FFu32.to_le_bytes());
 
     println!("{}", <dyn MyStruct as Copyable>::MEMORY_SIZE);
 
     let memory = Arc::new(CopyMemoryView::new(memory));
     {
         let object = Reference::<dyn MyStruct, _>::new(memory.clone(), 0x00);
-        println!("field_a = {}", object.field_a()?);
-        println!("field_b = {}", object.field_b()?);
+        println!("field_a = {:X}", object.field_a()?);
+        println!("field_b = {:X}", object.field_b()?);
+
+        let object_ex = object.cast::<dyn MyStructExt>();
+        println!("ex field_b = {:X}", object_ex.field_b()?);
+        println!("ex ext_field_a = {:X}", object_ex.ext_field_a()?);
+        println!("X a & b combined = {:X}", object_ex.first_t()?);
     }
 
     {
         let object = Copy::<dyn MyStruct>::read_object(&*memory, 0x00)?;
-        println!("field_a = {}", object.field_a()?);
-        println!("field_b = {}", object.field_b()?);
+        println!("field_a = {:X}", object.field_a()?);
+        println!("field_b = {:X}", object.field_b()?);
     }
 
     Ok(())
@@ -78,9 +85,18 @@ struct MyStruct {
     pub field_g: [u8; 0x20],
 }
 
+#[raw_struct(memory = "T")]
+struct X<T>
+where
+    T: marker::Copy + Send + Sync + 'static,
+{
+    #[field(offset = "0x00")]
+    first_t: T,
+}
+
 #[raw_struct(size = 0x44)]
+#[inherits(MyStruct, X::<u64>)]
 struct MyStructExt {
     #[field(offset = 0x40)]
     pub ext_field_a: u32,
 }
-impl MyStruct for dyn MyStructExt {}

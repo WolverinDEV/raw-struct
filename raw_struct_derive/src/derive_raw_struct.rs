@@ -8,6 +8,7 @@ use syn::{
         Parse,
         ParseStream,
     },
+    parse_quote,
     punctuated::Punctuated,
     spanned::Spanned,
     Attribute,
@@ -22,6 +23,8 @@ use syn::{
     Lit,
     LitStr,
     MetaNameValue,
+    Path,
+    PathArguments,
     Result,
     Token,
     TypeGenerics,
@@ -209,6 +212,7 @@ struct ViewableGenerator<'a> {
     args: StructArgs,
 
     attributes: Vec<&'a Attribute>,
+    inherits: Vec<Path>,
     fields: Vec<ViewableField<'a>>,
 
     generics_impl: ImplGenerics<'a>,
@@ -236,26 +240,37 @@ impl<'a> ViewableGenerator<'a> {
         }
     }
 
-    fn parse_attributes(target: &'a ItemStruct) -> Result<Vec<&'a Attribute>> {
-        target
-            .attrs
-            .iter()
-            .map(|attr| {
-                if attr.path.is_ident("doc") {
-                    Ok(attr)
-                } else {
-                    Err(Error::new(
+    fn parse_attributes(target: &'a ItemStruct) -> Result<(Vec<&'a Attribute>, Vec<Path>)> {
+        let mut attributes = Vec::with_capacity(target.attrs.len());
+        let mut inherits = None;
+
+        for attr in &target.attrs {
+            if attr.path.is_ident("doc") {
+                attributes.push(attr);
+            } else if attr.path.is_ident("inherits") {
+                if inherits.is_some() {
+                    return Err(Error::new(
                         attr.span(),
-                        "only \"doc\" attributes are supported on raw_structs",
-                    ))
+                        "only one instance of the \"inherits\" attributes is supported",
+                    ));
                 }
-            })
-            .collect::<Result<Vec<_>>>()
+
+                let args = attr.parse_args_with(Punctuated::<Path, Token![,]>::parse_terminated)?;
+                inherits = Some(args.iter().cloned().collect::<Vec<_>>());
+            } else {
+                return Err(Error::new(
+                    attr.span(),
+                    "only \"doc\" or \"inherits\" attributes are supported on raw_structs",
+                ));
+            }
+        }
+
+        Ok((attributes, inherits.unwrap_or_default()))
     }
 
     fn new(target: &'a ItemStruct, target_args: StructArgs) -> Result<Self> {
         let fields = Self::parse_fields(&target)?;
-        let attributes = Self::parse_attributes(&target)?;
+        let (attributes, inherits) = Self::parse_attributes(&target)?;
 
         let (generics_impl, generics_type, generics_where) = target.generics.split_for_impl();
 
@@ -285,6 +300,7 @@ impl<'a> ViewableGenerator<'a> {
             args: target_args,
 
             attributes,
+            inherits,
             fields,
 
             generics_impl,
@@ -410,6 +426,36 @@ impl<'a> ViewableGenerator<'a> {
                 for #instance_name<A, MemoryView> { }
         }
     }
+
+    fn generate_inheritances(&self) -> TokenStream {
+        let accessor_name = &self.accessor_name;
+        let (accessor_impl_generics, accessor_ty_generics, accessor_where_clause) =
+            self.accessor_generics.split_for_impl();
+
+        let mut inheritances = Vec::with_capacity(self.inherits.len());
+        for path in &self.inherits {
+            let mut path = path.clone();
+            let Some(last) = path.segments.last_mut() else {
+                panic!("expected a path to have at least one segment");
+            };
+
+            last.ident = Ident::new(&format!("{}_Accessor", last.ident), last.span());
+            last.arguments = match &last.arguments {
+                PathArguments::None => PathArguments::AngleBracketed(parse_quote! { <MemoryView> }),
+                PathArguments::Parenthesized(_) => unreachable!(),
+                PathArguments::AngleBracketed(value) => {
+                    let args = value.args.iter();
+                    PathArguments::AngleBracketed(parse_quote! { <MemoryView, #(#args,)*> })
+                }
+            };
+
+            inheritances.push(quote! {
+                impl #accessor_impl_generics #path for dyn #accessor_name #accessor_ty_generics #accessor_where_clause {}
+            });
+        }
+
+        quote! { #(#inheritances)* }
+    }
 }
 
 pub fn raw_struct(attr: TokenStream, input: TokenStream) -> Result<TokenStream> {
@@ -432,12 +478,19 @@ pub fn raw_struct(attr: TokenStream, input: TokenStream) -> Result<TokenStream> 
     //     generator.generate_instance_struct().to_string()
     // );
 
+    // println!(
+    //     "/* Inheritances: */ {}",
+    //     generator.generate_inheritances().to_string()
+    // );
+
     let main_trait = generator.generate_main_trait();
     let accessors = generator.generate_accessor_trait();
     let instance = generator.generate_instance_struct();
+    let inheritances = generator.generate_inheritances();
     Ok(quote! {
         #main_trait
         #accessors
         #instance
+        #inheritances
     })
 }

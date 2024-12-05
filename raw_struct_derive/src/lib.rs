@@ -6,8 +6,12 @@ mod derive_raw_struct;
 /// Marks a struct as a representation of a C-style struct with memory-mapped fields.
 ///
 /// # Supported Attributes:  
-/// - `size = "<struct size>"` (required)  
-///   Defines the total memory size of the struct.
+/// - `#[raw_struct(...)]`
+///   - `size = "<struct size>"` (required)  
+///     Defines the total memory size of the struct.
+/// - `#[inherits(...)]`  
+///   One or multiple base classes similar to the `#[derive(...)]` attribute.  
+///   Note: base classes must be raw_structs as well.
 ///
 /// Each field within the struct must be annotated with the `#[field(...)]` attribute.
 ///
