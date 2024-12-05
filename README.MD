@@ -6,7 +6,17 @@
 [github build status]: https://github.com/WolverinDEV/raw-struct/workflows/Rust/badge.svg?branch=master
 [actions]: https://github.com/WolverinDEV/raw-struct/actions?query=workflow%3ARust
 
-`raw_struct` is a Rust procedural macro for easily declaring C-style structs that reference local or external memory, based on your memory implementation. It generates appropiate getter methods for easy access. This crate has support for `no_std` environments.
+`raw_struct` is a Rust procedural macro for easily declaring C-style structs that reference local or external memory, based on your memory implementation.
+It generates appropiate getter methods for easy access.
+This crate has support for `no_std` environments.
+
+## Features
+
+Supported features:
+
+- Zero overhead memory access
+- Dynamic member offsets
+- Generic parameters on structs including dynamic memory layout (see dyn_memory example)
 
 ## Usage
 
