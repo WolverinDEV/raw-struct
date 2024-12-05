@@ -57,20 +57,18 @@ impl<T: ?Sized + Viewable, MemoryError: 'static> Reference<T, MemoryError> {
         }
     }
 
-    // TODO: Rename base_address
-    pub fn reference_address(&self) -> u64 {
+    pub fn base_address(&self) -> u64 {
         let memory = self.inner.object_memory();
         memory.address
     }
 
-    // TODO: Rename base_memory
-    pub fn reference_memory(&self) -> &Arc<dyn MemoryView<Error = MemoryError>> {
+    pub fn base_memory(&self) -> &Arc<dyn MemoryView<Error = MemoryError>> {
         let memory = self.inner.object_memory();
         &memory.inner
     }
 
     pub fn cast<V: ?Sized + Viewable>(&self) -> Reference<V, MemoryError> {
-        Reference::new(self.reference_memory().clone(), self.reference_address())
+        Reference::new(self.base_memory().clone(), self.base_address())
     }
 }
 
@@ -79,15 +77,15 @@ where
     Copy<T>: marker::Copy,
 {
     pub fn copy(&self) -> Result<Copy<T>, AccessError<MemoryError>> {
-        let memory = self.reference_memory().deref();
-        Copy::<T>::read_object(memory, self.reference_address()).map_err(|err| AccessError {
+        let memory = self.base_memory().deref();
+        Copy::<T>::read_object(memory, self.base_address()).map_err(|err| AccessError {
             source: err,
 
             object: T::name(),
             member: None,
 
             mode: AccessMode::Read,
-            offset: self.reference_address(),
+            offset: self.base_address(),
             size: T::MEMORY_SIZE,
         })
     }
