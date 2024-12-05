@@ -12,9 +12,10 @@ use raw_struct::{
     },
     raw_struct,
     Copy,
+    CopyMemoryView,
+    Copyable,
     FromMemoryView,
     Reference,
-    Viewable,
 };
 
 fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -22,9 +23,9 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     memory[0..4].copy_from_slice(&0x6Fu32.to_le_bytes());
     memory[4..8].copy_from_slice(&0x99u32.to_le_bytes());
 
-    println!("{}", <dyn MyStruct as Viewable>::MEMORY_SIZE);
+    println!("{}", <dyn MyStruct as Copyable>::MEMORY_SIZE);
 
-    let memory = Arc::new(memory);
+    let memory = Arc::new(CopyMemoryView::new(memory));
     {
         let object = Reference::<dyn MyStruct, _>::new(memory.clone(), 0x00);
         println!("field_a = {}", object.field_a()?);

@@ -8,7 +8,10 @@ use core::{
 use crate::{
     error::AccessError,
     memory::MemoryView,
-    view::ViewableBase,
+    view::{
+        Copyable,
+        ViewableBase,
+    },
     AccessMode,
     Copy,
     FromMemoryView,
@@ -71,13 +74,13 @@ impl<T: ?Sized + Viewable, MemoryError: 'static> Reference<T, MemoryError> {
     }
 }
 
-impl<T: ?Sized + Viewable, MemoryError: 'static> Reference<T, MemoryError>
+impl<T: ?Sized + Copyable, MemoryError: 'static> Reference<T, MemoryError>
 where
-    T::Instance<T::Memory>: marker::Copy,
+    Copy<T>: marker::Copy,
 {
     pub fn copy(&self) -> Result<Copy<T>, AccessError<MemoryError>> {
         let memory = self.reference_memory().deref();
-        Copy::read_object(memory, self.reference_address()).map_err(|err| AccessError {
+        Copy::<T>::read_object(memory, self.reference_address()).map_err(|err| AccessError {
             source: err,
 
             object: T::name(),

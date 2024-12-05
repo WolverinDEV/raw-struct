@@ -14,12 +14,14 @@ pub use error::{
     AccessViolation,
 };
 pub use memory::{
+    CopyMemoryView,
     FromMemoryView,
     MemoryView,
 };
 pub use raw_struct_derive::raw_struct;
 pub use reference::Reference;
 pub use view::{
+    Copyable,
     Viewable,
     ViewableBase,
     ViewableInstance,

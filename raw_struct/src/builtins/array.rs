@@ -4,22 +4,21 @@ use alloc::{
     vec::Vec,
 };
 use core::{
-    marker::{
-        self,
-    },
+    self,
+    marker,
     mem,
     ops::Range,
     slice,
 };
 
 use crate::{
+    view::Copyable,
     AccessError,
     AccessMode,
     Copy,
     FromMemoryView,
     MemoryView,
     Reference,
-    Viewable,
 };
 
 #[allow(clippy::len_without_is_empty)]
@@ -79,7 +78,8 @@ impl<T: FromMemoryView> dyn Array<T> {
     }
 }
 
-impl<T: ?Sized + Viewable> dyn Array<T> {
+/* We need T to be a Copyable as we need to know the element size */
+impl<T: ?Sized + Copyable> dyn Array<T> {
     pub fn element_reference<E: 'static>(
         &self,
         memory: Arc<dyn MemoryView<Error = E>>,
@@ -103,15 +103,15 @@ impl<T: ?Sized + Viewable> dyn Array<T> {
     }
 }
 
-impl<T: ?Sized + Viewable> dyn Array<T>
-where
-    T::Instance<T::Memory>: marker::Copy,
-{
+impl<T: ?Sized + Copyable> dyn Array<T> {
     pub fn element_copy<E>(
         &self,
         memory: &dyn MemoryView<Error = E>,
         index: usize,
-    ) -> Result<Copy<T>, AccessError<E>> {
+    ) -> Result<Copy<T>, AccessError<E>>
+    where
+        Copy<T>: marker::Copy,
+    {
         let offset = (index * T::MEMORY_SIZE) as u64;
         Copy::read_object(memory, self.start_address() + offset).map_err(|err| AccessError {
             source: err,

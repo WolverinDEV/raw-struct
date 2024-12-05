@@ -322,8 +322,6 @@ impl<'a> ViewableGenerator<'a> {
             #vis trait #name #generics_type #generics_where { }
 
             impl #generics_impl ::raw_struct::Viewable for dyn #name #generics_type #generics_where {
-                type Memory = #memory;
-
                 type Accessor<MemoryView: ::raw_struct::MemoryView + 'static> = dyn #accessor_name #accessor_type_generics;
 
                 type Instance<MemoryView: ::raw_struct::MemoryView + 'static> = #instance_name <Self::Accessor<MemoryView>, MemoryView>;
@@ -335,6 +333,10 @@ impl<'a> ViewableGenerator<'a> {
                 fn create_view<M: ::raw_struct::MemoryView + 'static>(memory: M) -> Self::Instance<M> {
                     #instance_name { _accessor: Default::default(), memory }
                 }
+            }
+
+            impl #generics_impl ::raw_struct::Copyable for dyn #name #generics_type #generics_where {
+                type Memory = #memory;
             }
         }
     }

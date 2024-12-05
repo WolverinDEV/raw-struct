@@ -4,18 +4,22 @@ use core::{
     ops::Deref,
 };
 
-use crate::view::Viewable;
+use crate::{
+    memory::CopyMemoryView,
+    view::Copyable,
+    ViewableBase,
+};
 
 /// A Copy represents an owned copy of the struct binary contents
 #[repr(transparent)]
-pub struct Copy<T: ?Sized + Viewable> {
-    inner: T::Instance<T::Memory>,
+pub struct Copy<T: ?Sized + Copyable> {
+    inner: T::Instance<CopyMemoryView<T::Memory>>,
 }
 
-impl<T: ?Sized + Viewable> Copy<T> {
+impl<T: ?Sized + Copyable> Copy<T> {
     pub fn new(inner: T::Memory) -> Self {
         Self {
-            inner: T::create_view(inner),
+            inner: T::create_view(CopyMemoryView::new(inner)),
         }
     }
 
@@ -25,10 +29,16 @@ impl<T: ?Sized + Viewable> Copy<T> {
     pub unsafe fn new_zerod() -> Self {
         Self::new(MaybeUninit::zeroed().assume_init())
     }
+
+    // pub fn read_object<E>(view: &dyn MemoryView<Error = E>, offset: u64) -> Result<Self, E> {
+    //     Ok(Self {
+    //         inner: T::create_view(CopyMemoryView::<T::Memory>::read_object(view, offset)?),
+    //     })
+    // }
 }
 
-impl<T: ?Sized + Viewable> Deref for Copy<T> {
-    type Target = T::Instance<T::Memory>;
+impl<T: ?Sized + Copyable> Deref for Copy<T> {
+    type Target = T::Instance<CopyMemoryView<T::Memory>>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -37,19 +47,18 @@ impl<T: ?Sized + Viewable> Deref for Copy<T> {
 
 impl<T> Clone for Copy<T>
 where
-    T: ?Sized + Viewable,
-    T::Instance<T::Memory>: Clone,
+    T: ?Sized + Copyable,
 {
     fn clone(&self) -> Self {
         Self {
-            inner: self.inner.clone(),
+            inner: T::create_view(self.inner.object_memory().clone()),
         }
     }
 }
 
 impl<T> marker::Copy for Copy<T>
 where
-    T: ?Sized + Viewable,
-    T::Instance<T::Memory>: marker::Copy,
+    T: ?Sized + Copyable,
+    T::Instance<CopyMemoryView<T::Memory>>: marker::Copy,
 {
 }

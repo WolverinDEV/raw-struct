@@ -2,14 +2,13 @@ use alloc::{
     borrow::Cow,
     format,
 };
-#[cfg(feature = "no_std")]
-pub use core::error::Error as ErrorType;
 use core::{
     convert::Infallible,
-    fmt,
+    fmt::{
+        self,
+        Debug,
+    },
 };
-#[cfg(not(feature = "no_std"))]
-pub use std::error::Error as ErrorType;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum AccessMode {
@@ -35,7 +34,11 @@ impl fmt::Display for AccessViolation {
     }
 }
 
-impl ErrorType for AccessViolation {}
+#[cfg(feature = "no_std")]
+impl core::error::Error for AccessViolation {}
+
+#[cfg(not(feature = "no_std"))]
+impl std::error::Error for AccessViolation {}
 
 #[derive(Debug)]
 pub struct AccessError<S = Infallible> {
@@ -67,8 +70,16 @@ impl<S: fmt::Display> fmt::Display for AccessError<S> {
     }
 }
 
-impl<S: ErrorType + 'static> ErrorType for AccessError<S> {
-    fn source(&self) -> Option<&(dyn ErrorType + 'static)> {
+#[cfg(feature = "no_std")]
+impl<S: core::error::Error + 'static> core::error::Error for AccessError<S> {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
+        Some(&self.source)
+    }
+}
+
+#[cfg(not(feature = "no_std"))]
+impl<S: std::error::Error + 'static> std::error::Error for AccessError<S> {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(&self.source)
     }
 }

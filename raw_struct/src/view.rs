@@ -11,23 +11,24 @@ pub trait ViewableInstance<A: ?Sized, M: MemoryView>: ViewableBase<M> {
 }
 
 pub trait Viewable: 'static {
-    // TODO: Move this into Copyable
-    /// Const memory used for copying the value
-    type Memory: Copy + Send + Sync;
-
     /// Accessor trait used to access memory contents
     type Accessor<M: MemoryView + 'static>: ?Sized;
 
     /// View instance type packed by memory view M
     type Instance<M: MemoryView + 'static>: ViewableInstance<Self::Accessor<M>, M>;
 
-    // TODO: Move this into Copyable
-    /// Byte size of the copy memory
-    const MEMORY_SIZE: usize = core::mem::size_of::<Self::Memory>();
-
     /// Debug name of the Viewable
     fn name() -> Cow<'static, str>;
 
     /// Create a new view backed by the given memory
     fn create_view<M: MemoryView + 'static>(memory: M) -> Self::Instance<M>;
+}
+
+/// Stronger type of viewable which indicates that the object can be copied
+pub trait Copyable: Viewable {
+    /// Const memory used for copying the value
+    type Memory: Copy + Send + Sync;
+
+    /// Byte size of the copy memory
+    const MEMORY_SIZE: usize = core::mem::size_of::<Self::Memory>();
 }

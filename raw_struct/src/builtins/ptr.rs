@@ -13,6 +13,7 @@ use super::{
     Array,
 };
 use crate::{
+    view::Copyable,
     AccessError,
     AccessMode,
     Copy,
@@ -89,7 +90,9 @@ impl<T: ?Sized + Viewable> Ptr64<T> {
             None
         }
     }
+}
 
+impl<T: ?Sized + Copyable> Ptr64<T> {
     /// Create a copy of the value the pointer points to
     #[must_use = "copied result must be used"]
     pub fn value_copy<E>(
