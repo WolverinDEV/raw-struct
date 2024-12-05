@@ -1,15 +1,17 @@
 # raw_struct &emsp; [![Latest Version]][crates.io] [![License: GPL v3]](./LICENSE) [![GitHub build status]][actions]
 
-[License: GPL v3]: https://img.shields.io/badge/License-GPLv3-blue.svg
-[Latest Version]: https://img.shields.io/crates/v/raw_struct.svg
+[license: gpl v3]: https://img.shields.io/badge/License-GPLv3-blue.svg
+[latest version]: https://img.shields.io/crates/v/raw_struct.svg
 [crates.io]: https://crates.io/crates/raw_struct
-[GitHub build status]: https://github.com/WolverinDEV/raw-struct/workflows/Rust/badge.svg?branch=master
+[github build status]: https://github.com/WolverinDEV/raw-struct/workflows/Rust/badge.svg?branch=master
 [actions]: https://github.com/WolverinDEV/raw-struct/actions?query=workflow%3ARust
 
 `raw_struct` is a Rust procedural macro for easily declaring C-style structs that reference local or external memory, based on your memory implementation. It generates appropiate getter methods for easy access. This crate has support for `no_std` environments.
 
 ## Usage
+
 To use `raw_struct`, simply define a struct with the raw_struct attribute as following:
+
 ```rust
 #[raw_struct(size = 0x10)]
 struct MyStruct {
@@ -25,10 +27,11 @@ struct MyStruct {
 ```
 
 To reference the declared struct in memory you can ether do so by `Reference` or `Copy`:
+
 ```rust
 let memory = [0u8; 0x10];
 {
-    let object = Reference::<dyn MyStruct>::new(0x00, Arc::new(memory.clone()));
+    let object = Reference::<dyn MyStruct, _>::new(0x00, Arc::new(memory.clone()));
     println!("field_a = {}", object.field_a()?);
     println!("field_b = {}", object.field_b()?);
 }
@@ -41,9 +44,15 @@ let memory = [0u8; 0x10];
 ```
 
 ## Examples
+
 Examples can be found within the examples directory of this repository. These examples demonstrate how to use raw_struct in various contexts.
 
 To run the examples, clone the repository and use the following command:
+
 ```bash
 cargo run --bin <example_name>
 ```
+
+## Performance
+
+In release mode, accessing `raw_structs` behind a `Copy<...>` is as efficient as general memory accesses, with **zero overhead**.

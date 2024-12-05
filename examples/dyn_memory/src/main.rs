@@ -1,7 +1,9 @@
 use std::{
     self,
     error::Error,
-    marker,
+    marker::{
+        self,
+    },
 };
 
 use raw_struct::{
@@ -12,12 +14,16 @@ use raw_struct::{
 };
 
 fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
+    /*
+     * Note:
+     * Accessing all the container entries evaluates in release mode to just a mov instruction.
+     */
     let buffer = [0x1122u64, 0x8877, 0x9988];
     let object = Copy::<dyn Container<u64>>::read_object(&buffer, 0x00)?;
 
     println!(
         "Memory size: 0x{:X}",
-        <dyn Container::<u64> as Viewable<_>>::MEMORY_SIZE
+        <dyn Container::<u64> as Viewable>::MEMORY_SIZE
     );
     println!("Vat a = 0x{:X}", object.var_a()?);
     println!("Inner = 0x{:X}", object.inner()?);

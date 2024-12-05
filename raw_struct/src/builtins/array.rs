@@ -30,7 +30,11 @@ pub trait Array<T: ?Sized> {
 }
 
 impl<T: FromMemoryView> dyn Array<T> {
-    pub fn element_at(&self, memory: &dyn MemoryView, index: usize) -> Result<T, AccessError> {
+    pub fn element_at<E>(
+        &self,
+        memory: &dyn MemoryView<Error = E>,
+        index: usize,
+    ) -> Result<T, AccessError<E>> {
         let offset = (index * mem::size_of::<T>()) as u64;
         T::read_object(memory, self.start_address() + offset).map_err(|err| AccessError {
             source: err,
@@ -42,11 +46,11 @@ impl<T: FromMemoryView> dyn Array<T> {
         })
     }
 
-    pub fn elements(
+    pub fn elements<E>(
         &self,
-        memory: &dyn MemoryView,
+        memory: &dyn MemoryView<Error = E>,
         range: Range<usize>,
-    ) -> Result<Vec<T>, AccessError> {
+    ) -> Result<Vec<T>, AccessError<E>> {
         let element_count = range.end - range.start;
         let mut result = Vec::with_capacity(element_count);
 
@@ -75,17 +79,21 @@ impl<T: FromMemoryView> dyn Array<T> {
     }
 }
 
-impl<T: ?Sized + Viewable<T>> dyn Array<T> {
-    pub fn element_reference(&self, memory: Arc<dyn MemoryView>, index: usize) -> Reference<T> {
+impl<T: ?Sized + Viewable> dyn Array<T> {
+    pub fn element_reference<E: 'static>(
+        &self,
+        memory: Arc<dyn MemoryView<Error = E>>,
+        index: usize,
+    ) -> Reference<T, E> {
         let offset = (index * T::MEMORY_SIZE) as u64;
         Reference::new(memory, self.start_address() + offset)
     }
 
-    pub fn elements_reference(
+    pub fn elements_reference<E: 'static>(
         &self,
-        memory: Arc<dyn MemoryView>,
+        memory: Arc<dyn MemoryView<Error = E>>,
         range: Range<usize>,
-    ) -> Vec<Reference<T>> {
+    ) -> Vec<Reference<T, E>> {
         Vec::from_iter(range.map(|index| {
             Reference::new(
                 memory.clone(),
@@ -95,15 +103,15 @@ impl<T: ?Sized + Viewable<T>> dyn Array<T> {
     }
 }
 
-impl<T: ?Sized + Viewable<T>> dyn Array<T>
+impl<T: ?Sized + Viewable> dyn Array<T>
 where
-    T::Implementation<T::Memory>: marker::Copy,
+    T::Instance<T::Memory>: marker::Copy,
 {
-    pub fn element_copy(
+    pub fn element_copy<E>(
         &self,
-        memory: &dyn MemoryView,
+        memory: &dyn MemoryView<Error = E>,
         index: usize,
-    ) -> Result<Copy<T>, AccessError> {
+    ) -> Result<Copy<T>, AccessError<E>> {
         let offset = (index * T::MEMORY_SIZE) as u64;
         Copy::read_object(memory, self.start_address() + offset).map_err(|err| AccessError {
             source: err,
@@ -115,11 +123,11 @@ where
         })
     }
 
-    pub fn elements_copy(
+    pub fn elements_copy<E>(
         &self,
-        memory: &dyn MemoryView,
+        memory: &dyn MemoryView<Error = E>,
         range: Range<usize>,
-    ) -> Result<Vec<Copy<T>>, AccessError> {
+    ) -> Result<Vec<Copy<T>>, AccessError<E>> {
         let element_count = range.end - range.start;
         let mut result = Vec::<T::Memory>::with_capacity(element_count);
 

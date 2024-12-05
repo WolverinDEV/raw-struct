@@ -11,6 +11,7 @@ pub use copy::Copy;
 pub use error::{
     AccessError,
     AccessMode,
+    AccessViolation,
 };
 pub use memory::{
     FromMemoryView,
@@ -21,7 +22,7 @@ pub use reference::Reference;
 pub use view::{
     Viewable,
     ViewableBase,
-    ViewableImplementation,
+    ViewableInstance,
 };
 
 extern crate alloc;

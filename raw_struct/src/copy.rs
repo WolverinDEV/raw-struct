@@ -4,21 +4,18 @@ use core::{
     ops::Deref,
 };
 
-use crate::{
-    view::Viewable,
-    ViewableImplementation,
-};
+use crate::view::Viewable;
 
 /// A Copy represents an owned copy of the struct binary contents
 #[repr(transparent)]
-pub struct Copy<T: ?Sized + Viewable<T>> {
-    inner: T::Implementation<T::Memory>,
+pub struct Copy<T: ?Sized + Viewable> {
+    inner: T::Instance<T::Memory>,
 }
 
-impl<T: ?Sized + Viewable<T>> Copy<T> {
+impl<T: ?Sized + Viewable> Copy<T> {
     pub fn new(inner: T::Memory) -> Self {
         Self {
-            inner: T::create(inner),
+            inner: T::create_view(inner),
         }
     }
 
@@ -30,18 +27,18 @@ impl<T: ?Sized + Viewable<T>> Copy<T> {
     }
 }
 
-impl<T: ?Sized + Viewable<T>> Deref for Copy<T> {
-    type Target = T;
+impl<T: ?Sized + Viewable> Deref for Copy<T> {
+    type Target = T::Instance<T::Memory>;
 
     fn deref(&self) -> &Self::Target {
-        self.inner.as_trait()
+        &self.inner
     }
 }
 
 impl<T> Clone for Copy<T>
 where
-    T: ?Sized + Viewable<T>,
-    T::Implementation<T::Memory>: Clone,
+    T: ?Sized + Viewable,
+    T::Instance<T::Memory>: Clone,
 {
     fn clone(&self) -> Self {
         Self {
@@ -52,7 +49,7 @@ where
 
 impl<T> marker::Copy for Copy<T>
 where
-    T: ?Sized + Viewable<T>,
-    T::Implementation<T::Memory>: marker::Copy,
+    T: ?Sized + Viewable,
+    T::Instance<T::Memory>: marker::Copy,
 {
 }

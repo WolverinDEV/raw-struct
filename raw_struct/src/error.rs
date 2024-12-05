@@ -1,15 +1,15 @@
 use alloc::{
     borrow::Cow,
-    boxed::Box,
     format,
 };
 #[cfg(feature = "no_std")]
 pub use core::error::Error as ErrorType;
-use core::fmt;
+use core::{
+    convert::Infallible,
+    fmt,
+};
 #[cfg(not(feature = "no_std"))]
 pub use std::error::Error as ErrorType;
-
-pub type Error = Box<dyn ErrorType + Send + Sync + 'static>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum AccessMode {
@@ -38,8 +38,8 @@ impl fmt::Display for AccessViolation {
 impl ErrorType for AccessViolation {}
 
 #[derive(Debug)]
-pub struct AccessError {
-    pub source: Error,
+pub struct AccessError<S = Infallible> {
+    pub source: S,
 
     pub offset: u64,
     pub size: usize,
@@ -49,7 +49,7 @@ pub struct AccessError {
     pub member: Option<Cow<'static, str>>,
 }
 
-impl fmt::Display for AccessError {
+impl<S: fmt::Display> fmt::Display for AccessError<S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -67,8 +67,8 @@ impl fmt::Display for AccessError {
     }
 }
 
-impl ErrorType for AccessError {
+impl<S: ErrorType + 'static> ErrorType for AccessError<S> {
     fn source(&self) -> Option<&(dyn ErrorType + 'static)> {
-        Some(&*self.source)
+        Some(&self.source)
     }
 }

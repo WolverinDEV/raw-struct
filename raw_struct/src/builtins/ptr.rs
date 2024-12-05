@@ -54,7 +54,10 @@ impl<T: ?Sized> Ptr64<T> {
 impl<T: marker::Copy> Ptr64<T> {
     /// Create a copy of the value the pointer points to
     #[must_use = "copied result must be used"]
-    pub fn read_value(&self, memory: &dyn MemoryView) -> Result<Option<T>, AccessError> {
+    pub fn read_value<E>(
+        &self,
+        memory: &dyn MemoryView<Error = E>,
+    ) -> Result<Option<T>, AccessError<E>> {
         if self.address > 0 {
             let memory = T::read_object(memory, self.address).map_err(|err| AccessError {
                 source: err,
@@ -74,9 +77,12 @@ impl<T: marker::Copy> Ptr64<T> {
     }
 }
 
-impl<T: ?Sized + Viewable<T>> Ptr64<T> {
+impl<T: ?Sized + Viewable> Ptr64<T> {
     #[must_use]
-    pub fn value_reference(&self, memory: Arc<dyn MemoryView>) -> Option<Reference<T>> {
+    pub fn value_reference<E: 'static>(
+        &self,
+        memory: Arc<dyn MemoryView<Error = E>>,
+    ) -> Option<Reference<T, E>> {
         if self.address > 0 {
             Some(Reference::new(memory, self.address))
         } else {
@@ -86,7 +92,10 @@ impl<T: ?Sized + Viewable<T>> Ptr64<T> {
 
     /// Create a copy of the value the pointer points to
     #[must_use = "copied result must be used"]
-    pub fn value_copy(&self, memory: &dyn MemoryView) -> Result<Option<Copy<T>>, AccessError> {
+    pub fn value_copy<E>(
+        &self,
+        memory: &dyn MemoryView<Error = E>,
+    ) -> Result<Option<Copy<T>>, AccessError<E>> {
         if self.address > 0 {
             let memory =
                 T::Memory::read_object(memory, self.address).map_err(|err| AccessError {

@@ -1,6 +1,10 @@
+use std::sync::Arc;
+
 use raw_struct::{
     raw_struct,
     Copy,
+    MemoryView,
+    Reference,
 };
 
 #[raw_struct(size = 0x08)]
@@ -22,4 +26,7 @@ fn test_inline() {
 
     let object = Copy::<dyn A>::new(memory);
     assert_eq!(object.val_b().unwrap().value().unwrap(), 0xDEADBEEF);
+
+    let memory_view: Arc<dyn MemoryView<Error = _>> = Arc::new(memory);
+    let _object = Reference::<dyn A, _>::new(memory_view, 0x00);
 }
