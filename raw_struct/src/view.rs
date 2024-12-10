@@ -2,7 +2,7 @@ use alloc::borrow::Cow;
 
 use crate::memory::MemoryView;
 
-pub trait ViewableBase<M: MemoryView>: Send + Sync {
+pub trait ViewableBase<M: MemoryView> {
     fn object_memory(&self) -> &M;
 }
 
@@ -27,7 +27,7 @@ pub trait Viewable: 'static {
 /// Stronger type of viewable which indicates that the object can be copied
 pub trait Copyable: Viewable {
     /// Const memory used for copying the value
-    type Memory: Copy + Send + Sync;
+    type Memory: Copy;
 
     /// Byte size of the copy memory
     const MEMORY_SIZE: usize = core::mem::size_of::<Self::Memory>();

@@ -10,7 +10,7 @@ use core::{
 
 use crate::error::AccessViolation;
 
-pub trait MemoryView: Send + Sync {
+pub trait MemoryView {
     type Error;
 
     fn read_memory(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Self::Error>;
@@ -19,7 +19,7 @@ pub trait MemoryView: Send + Sync {
 impl MemoryView for &[u8] {
     type Error = AccessViolation;
 
-    fn read_memory(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Self::Error> {
+    fn read_memory(&self, offset: u64, buffer: &mut [u8]) -> Result<(), AccessViolation> {
         let offset = offset as usize;
         if offset + buffer.len() > self.len() {
             return Err(AccessViolation);
@@ -41,7 +41,7 @@ impl<T: marker::Copy> CopyMemoryView<T> {
     }
 }
 
-impl<T: marker::Copy + Send + Sync> MemoryView for CopyMemoryView<T> {
+impl<T: marker::Copy> MemoryView for CopyMemoryView<T> {
     type Error = AccessViolation;
 
     fn read_memory(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Self::Error> {
@@ -56,7 +56,7 @@ impl<T: marker::Copy + Send + Sync> MemoryView for CopyMemoryView<T> {
     }
 }
 
-impl<T: marker::Copy + Send + Sync> From<T> for CopyMemoryView<T> {
+impl<T: marker::Copy> From<T> for CopyMemoryView<T> {
     fn from(value: T) -> Self {
         Self::new(value)
     }

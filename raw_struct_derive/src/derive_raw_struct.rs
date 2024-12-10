@@ -379,6 +379,7 @@ impl<'a> ViewableGenerator<'a> {
     }
 
     fn generate_instance_struct(&self) -> TokenStream {
+        let vis = &self.source.vis;
         let instance_name = &self.instance_name;
         let accessor_name = &self.accessor_name;
 
@@ -387,12 +388,12 @@ impl<'a> ViewableGenerator<'a> {
 
         quote! {
             #[allow(non_camel_case_types)]
-            struct #instance_name <A: ?Sized, M: ::raw_struct::MemoryView> {
+            #vis struct #instance_name <A: ?Sized, M: ::raw_struct::MemoryView> {
                 _accessor: ::core::marker::PhantomData<A>,
                 memory: M,
             }
 
-            impl<A: ?Sized + Send + Sync, M: ::raw_struct::MemoryView> ::raw_struct::ViewableBase<M> for #instance_name<A, M> {
+            impl<A: ?Sized, M: ::raw_struct::MemoryView> ::raw_struct::ViewableBase<M> for #instance_name<A, M> {
                 fn object_memory(&self) -> &M {
                     &self.memory
                 }

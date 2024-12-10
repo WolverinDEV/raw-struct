@@ -37,8 +37,17 @@ impl<MemoryError> ReferenceMemory<MemoryError> {
 impl<MemoryError> MemoryView for ReferenceMemory<MemoryError> {
     type Error = MemoryError;
 
-    fn read_memory(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Self::Error> {
+    fn read_memory(&self, offset: u64, buffer: &mut [u8]) -> Result<(), MemoryError> {
         self.inner.read_memory(self.address + offset, buffer)
+    }
+}
+
+impl<MemoryError> Clone for ReferenceMemory<MemoryError> {
+    fn clone(&self) -> Self {
+        Self {
+            address: self.address,
+            inner: self.inner.clone(),
+        }
     }
 }
 
@@ -96,5 +105,16 @@ impl<T: Viewable + ?Sized, MemoryError> Deref for Reference<T, MemoryError> {
 
     fn deref(&self) -> &Self::Target {
         self.inner.get_accessor()
+    }
+}
+
+impl<T: Viewable + ?Sized, MemoryError> Clone for Reference<T, MemoryError>
+where
+    T::Instance<ReferenceMemory<MemoryError>>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+        }
     }
 }

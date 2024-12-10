@@ -2,12 +2,9 @@ use alloc::{
     borrow::Cow,
     format,
 };
-use core::{
-    convert::Infallible,
-    fmt::{
-        self,
-        Debug,
-    },
+use core::fmt::{
+    self,
+    Debug,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -41,7 +38,7 @@ impl core::error::Error for AccessViolation {}
 impl std::error::Error for AccessViolation {}
 
 #[derive(Debug)]
-pub struct AccessError<S = Infallible> {
+pub struct AccessError<S> {
     pub source: S,
 
     pub offset: u64,
