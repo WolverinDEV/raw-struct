@@ -1,146 +1,96 @@
-use alloc::{
-    format,
-    sync::Arc,
-    vec::Vec,
-};
+use alloc::vec::Vec;
 use core::{
-    marker::{
-        self,
-    },
+    self,
     mem,
     ops::Range,
     slice,
 };
 
 use crate::{
-    AccessError,
-    AccessMode,
     Copy,
     FromMemoryView,
+    MemoryDecodeError,
     MemoryView,
     Reference,
-    Viewable,
+    SizedViewable,
 };
 
 #[allow(clippy::len_without_is_empty)]
-pub trait Array<T: ?Sized> {
+pub trait Array<T> {
     fn start_address(&self) -> u64;
 
     fn len(&self) -> Option<usize>;
 }
 
 impl<T: FromMemoryView> dyn Array<T> {
-    pub fn element_at(&self, memory: &dyn MemoryView, index: usize) -> Result<T, AccessError> {
+    pub fn element_at<M: MemoryView>(
+        &self,
+        memory: &M,
+        index: usize,
+    ) -> Result<T, MemoryDecodeError<M::AccessError, T::DecodeError>> {
         let offset = (index * mem::size_of::<T>()) as u64;
-        T::read_object(memory, self.start_address() + offset).map_err(|err| AccessError {
-            source: err,
-            offset: self.start_address() + offset,
-            size: mem::size_of::<T>(),
-            mode: AccessMode::Read,
-            object: "[..]".into(),
-            member: Some(format!("[{}]", index).into()),
-        })
+        T::read_object(memory, self.start_address() + offset)
     }
 
-    pub fn elements(
+    pub fn elements<M: MemoryView>(
         &self,
-        memory: &dyn MemoryView,
+        memory: &M,
         range: Range<usize>,
-    ) -> Result<Vec<T>, AccessError> {
+    ) -> Result<Vec<T>, MemoryDecodeError<M::AccessError, T::DecodeError>> {
         let element_count = range.end - range.start;
         let mut result = Vec::with_capacity(element_count);
 
-        unsafe {
-            let buffer = slice::from_raw_parts_mut(
-                result.as_mut_ptr() as *mut u8,
-                element_count * mem::size_of::<T>(),
-            );
-            let offset = self.start_address() + (range.start * mem::size_of::<T>()) as u64;
-
-            memory
-                .read_memory(offset, buffer)
-                .map_err(|err| AccessError {
-                    source: err,
-                    offset,
-                    size: buffer.len(),
-                    mode: AccessMode::Read,
-                    object: "[..]".into(),
-                    member: Some(format!("[{:#?}]", range).into()),
-                })?;
-
-            result.set_len(element_count);
-        };
+        for index in range {
+            result.push(self.element_at(memory, index)?);
+        }
 
         Ok(result)
     }
 }
 
-impl<T: ?Sized + Viewable<T>> dyn Array<T> {
-    pub fn element_reference(&self, memory: Arc<dyn MemoryView>, index: usize) -> Reference<T> {
-        let offset = (index * T::MEMORY_SIZE) as u64;
+impl<T: SizedViewable> dyn Array<T> {
+    pub fn element_reference<M: MemoryView>(&self, memory: M, index: usize) -> Reference<T, M> {
+        let offset = (index * T::memory_size()) as u64;
         Reference::new(memory, self.start_address() + offset)
     }
 
-    pub fn elements_reference(
+    pub fn elements_reference<M: MemoryView + Clone>(
         &self,
-        memory: Arc<dyn MemoryView>,
+        memory: M,
         range: Range<usize>,
-    ) -> Vec<Reference<T>> {
+    ) -> Vec<Reference<T, M>> {
         Vec::from_iter(range.map(|index| {
             Reference::new(
                 memory.clone(),
-                self.start_address() + (index * T::MEMORY_SIZE) as u64,
+                self.start_address() + (index * T::memory_size()) as u64,
             )
         }))
     }
-}
 
-impl<T: ?Sized + Viewable<T>> dyn Array<T>
-where
-    T::Implementation<T::Memory>: marker::Copy,
-{
-    pub fn element_copy(
+    pub fn element_copy<M: MemoryView>(
         &self,
-        memory: &dyn MemoryView,
+        memory: &M,
         index: usize,
-    ) -> Result<Copy<T>, AccessError> {
-        let offset = (index * T::MEMORY_SIZE) as u64;
-        Copy::read_object(memory, self.start_address() + offset).map_err(|err| AccessError {
-            source: err,
-            offset: self.start_address() + offset,
-            size: T::MEMORY_SIZE,
-            mode: AccessMode::Read,
-            object: format!("[{}]", T::name()).into(),
-            member: Some(format!("[{}]", index).into()),
-        })
+    ) -> Result<Copy<T>, M::AccessError> {
+        let offset = (index * T::memory_size()) as u64;
+        Copy::read_from_memory(memory, self.start_address() + offset)
     }
 
-    pub fn elements_copy(
+    pub fn elements_copy<M: MemoryView>(
         &self,
-        memory: &dyn MemoryView,
+        memory: &M,
         range: Range<usize>,
-    ) -> Result<Vec<Copy<T>>, AccessError> {
+    ) -> Result<Vec<Copy<T>>, M::AccessError> {
         let element_count = range.end - range.start;
         let mut result = Vec::<T::Memory>::with_capacity(element_count);
 
         unsafe {
             let buffer = slice::from_raw_parts_mut(
                 result.as_mut_ptr() as *mut u8,
-                element_count * T::MEMORY_SIZE,
+                element_count * T::memory_size(),
             );
-            let offset = self.start_address() + (range.start * T::MEMORY_SIZE) as u64;
-
-            memory
-                .read_memory(offset, buffer)
-                .map_err(|err| AccessError {
-                    source: err,
-                    offset,
-                    size: buffer.len(),
-                    mode: AccessMode::Read,
-                    object: "[..]".into(),
-                    member: Some(format!("[{:#?}]", range).into()),
-                })?;
-
+            let offset = self.start_address() + (range.start * T::memory_size()) as u64;
+            memory.read_memory(offset, buffer)?;
             result.set_len(element_count);
         };
 
@@ -148,9 +98,9 @@ where
     }
 }
 
-pub trait SizedArray<T: ?Sized, const N: usize>: Array<T> {}
+pub trait SizedArray<T, const N: usize>: Array<T> {}
 
-impl<T: ?Sized, const N: usize> dyn SizedArray<T, N> {
+impl<T, const N: usize> dyn SizedArray<T, N> {
     pub fn len(&self) -> usize {
         N
     }

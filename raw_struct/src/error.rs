@@ -1,74 +1,46 @@
-use alloc::{
-    borrow::Cow,
-    boxed::Box,
-    format,
+use core::fmt::{
+    self,
+    Debug,
+    Display,
 };
-#[cfg(feature = "no_std")]
-pub use core::error::Error as ErrorType;
-use core::fmt;
-#[cfg(not(feature = "no_std"))]
-pub use std::error::Error as ErrorType;
-
-pub type Error = Box<dyn ErrorType + Send + Sync + 'static>;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum AccessMode {
-    Read,
-    Write,
-}
-
-impl AccessMode {
-    fn name(&self) -> &'static str {
-        match self {
-            Self::Read => "read",
-            Self::Write => "write",
-        }
-    }
-}
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct AccessViolation;
+pub struct OutOfBoundsViolation {
+    pub access_offset: usize,
+    pub access_len: usize,
 
-impl fmt::Display for AccessViolation {
+    pub src_len: usize,
+}
+
+impl fmt::Display for OutOfBoundsViolation {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "memory outside of the struct has been accessed")
     }
 }
 
-impl ErrorType for AccessViolation {}
+#[cfg(not(feature = "no_std"))]
+impl std::error::Error for OutOfBoundsViolation {}
 
-#[derive(Debug)]
-pub struct AccessError {
-    pub source: Error,
+#[cfg(feature = "no_std")]
+impl core::error::Error for OutOfBoundsViolation {}
 
-    pub offset: u64,
-    pub size: usize,
-    pub mode: AccessMode,
-
-    pub object: Cow<'static, str>,
-    pub member: Option<Cow<'static, str>>,
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+pub enum MemoryDecodeError<A, V> {
+    MemoryAccess(A),
+    ValueDecode(V),
 }
 
-impl fmt::Display for AccessError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "failed to {} 0x{:X} bytes at 0x{:X} ({}): {}",
-            self.mode.name(),
-            self.size,
-            self.offset,
-            if let Some(member) = &self.member {
-                Cow::from(format!("{}::{}", self.object, member))
-            } else {
-                self.object.clone()
-            },
-            self.source
-        )
+impl<A: Display, V: Display> fmt::Display for MemoryDecodeError<A, V> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::MemoryAccess(inner) => inner.fmt(f),
+            Self::ValueDecode(inner) => inner.fmt(f),
+        }
     }
 }
 
-impl ErrorType for AccessError {
-    fn source(&self) -> Option<&(dyn ErrorType + 'static)> {
-        Some(&*self.source)
-    }
-}
+#[cfg(not(feature = "no_std"))]
+impl<A: Display + Debug, V: Display + Debug> std::error::Error for MemoryDecodeError<A, V> {}
+
+#[cfg(feature = "no_std")]
+impl<A: Display + Debug, V: Display + Debug> core::error::Error for MemoryDecodeError<A, V> {}

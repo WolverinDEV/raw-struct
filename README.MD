@@ -28,13 +28,13 @@ To reference the declared struct in memory you can ether do so by `Reference` or
 ```rust
 let memory = [0u8; 0x10];
 {
-    let object = Reference::<dyn MyStruct>::new(0x00, Arc::new(memory.clone()));
+    let object = Reference::<MyStruct>::new(0x00, Arc::new(memory.clone()));
     println!("field_a = {}", object.field_a()?);
     println!("field_b = {}", object.field_b()?);
 }
 
 {
-    let object = Copy::<dyn MyStruct>::new(memory);
+    let object = Copy::<MyStruct>::new(memory);
     println!("field_a = {}", object.field_a()?);
     println!("field_b = {}", object.field_b()?);
 }

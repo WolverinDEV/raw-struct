@@ -1,95 +1,78 @@
-use alloc::sync::Arc;
 use core::{
     self,
-    marker,
     ops::Deref,
 };
 
 use crate::{
-    error::{
-        AccessError,
-        Error,
-    },
     memory::MemoryView,
-    view::ViewableImplementation,
-    AccessMode,
+    view::{
+        Viewable,
+        ViewableImplementation,
+    },
     Copy,
-    FromMemoryView,
-    Viewable,
+    SizedViewable,
 };
 
-pub struct ReferenceMemory {
+pub struct ReferenceMemory<M: MemoryView> {
     address: u64,
-    inner: Arc<dyn MemoryView>,
+    memory: M,
 }
 
-impl ReferenceMemory {
+impl<M: MemoryView> ReferenceMemory<M> {
     pub fn address(&self) -> u64 {
         self.address
     }
 
-    pub fn memory_view(&self) -> &Arc<dyn MemoryView> {
-        &self.inner
+    pub fn memory_view(&self) -> &M {
+        &self.memory
     }
 }
 
-impl MemoryView for ReferenceMemory {
-    fn read_memory(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Error> {
-        self.inner.read_memory(self.address + offset, buffer)
+impl<M: MemoryView> MemoryView for ReferenceMemory<M> {
+    type AccessError = M::AccessError;
+
+    fn read_memory(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Self::AccessError> {
+        self.memory.read_memory(self.address + offset, buffer)
     }
 }
 
 /// A reference to an object living in the underlying memory view.
-pub struct Reference<T: ?Sized + Viewable<T>> {
-    inner: T::Implementation<ReferenceMemory>,
+pub struct Reference<T: Viewable, M: MemoryView> {
+    inner: T::Implementation<ReferenceMemory<M>>,
 }
 
-impl<T: ?Sized + Viewable<T>> Reference<T> {
-    pub fn new(memory: Arc<dyn MemoryView>, address: u64) -> Self {
+impl<T: Viewable, M: MemoryView> Reference<T, M> {
+    pub fn new(memory: M, address: u64) -> Self {
         Self {
-            inner: T::create(ReferenceMemory {
-                address,
-                inner: memory,
-            }),
+            inner: T::from_memory(ReferenceMemory { address, memory }),
         }
     }
 
     pub fn reference_address(&self) -> u64 {
-        T::Implementation::memory(&self.inner).address()
+        self.inner.memory_view().address()
     }
 
-    pub fn reference_memory(&self) -> &Arc<dyn MemoryView> {
-        T::Implementation::memory(&self.inner).memory_view()
+    pub fn reference_memory(&self) -> &M {
+        self.inner.memory_view().memory_view()
     }
 
-    pub fn cast<V: ?Sized + Viewable<V>>(&self) -> Reference<V> {
-        Reference::<V>::new(self.reference_memory().clone(), self.reference_address())
-    }
-}
-
-impl<T: ?Sized + Viewable<T>> Reference<T>
-where
-    T::Implementation<T::Memory>: marker::Copy,
-{
-    pub fn copy(&self) -> Result<Copy<T>, AccessError> {
-        let memory = self.reference_memory().deref();
-        Copy::read_object(memory, self.reference_address()).map_err(|err| AccessError {
-            source: err,
-
-            object: T::name(),
-            member: None,
-
-            mode: AccessMode::Read,
-            offset: self.reference_address(),
-            size: T::MEMORY_SIZE,
-        })
+    pub fn cast<V: Viewable>(self) -> Reference<V, M> {
+        Reference {
+            inner: V::from_memory(self.inner.into_memory_view()),
+        }
     }
 }
 
-impl<T: Viewable<T> + ?Sized> Deref for Reference<T> {
-    type Target = T;
+impl<T: SizedViewable, M: MemoryView> Reference<T, M> {
+    pub fn create_copy(&self) -> Result<Copy<T>, M::AccessError> {
+        Copy::read_from_memory(self.memory_view(), 0x00)
+    }
+}
+
+impl<T: Viewable, M: MemoryView> Deref for Reference<T, M> {
+    type Target = T::Implementation<ReferenceMemory<M>>;
 
     fn deref(&self) -> &Self::Target {
-        self.inner.as_trait()
+        &self.inner
     }
 }

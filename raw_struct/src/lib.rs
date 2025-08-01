@@ -1,28 +1,38 @@
 #![cfg_attr(feature = "no_std", no_std)]
 
 pub mod builtins;
-mod copy;
-mod error;
-mod memory;
-mod reference;
-mod view;
 
-pub use copy::Copy;
+mod error;
 pub use error::{
-    AccessError,
-    AccessMode,
+    MemoryDecodeError,
+    OutOfBoundsViolation,
 };
+
+mod memory;
 pub use memory::{
     FromMemoryView,
     MemoryView,
 };
-pub use raw_struct_derive::raw_struct;
-pub use reference::Reference;
+
+mod view;
 pub use view::{
+    SizedViewable,
     Viewable,
-    ViewableBase,
     ViewableImplementation,
 };
+
+mod reference;
+pub use reference::{
+    Reference,
+    ReferenceMemory,
+};
+
+mod copy;
+pub use copy::{
+    Copy,
+    CopyMemory,
+};
+pub use raw_struct_derive::raw_struct;
 
 extern crate alloc;
 pub use alloc::borrow::Cow;

@@ -11,6 +11,6 @@ fn test_getter_rename() {
         field_a: u64,
     }
 
-    let instance = Copy::<dyn Dummy>::new([0x00; 0x08]);
+    let instance = Copy::<Dummy>::new([0x00; 0x08]);
     instance.get_field_d().unwrap();
 }

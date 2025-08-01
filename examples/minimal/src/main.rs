@@ -1,43 +1,36 @@
 use std::{
     self,
     error::Error,
-    sync::Arc,
 };
 
 use raw_struct::{
-    builtins::{
-        Array,
-        Ptr64,
-        SizedArray,
-    },
+    builtins::Ptr64,
     raw_struct,
     Copy,
-    FromMemoryView,
     Reference,
-    Viewable,
+    SizedViewable,
 };
 
 fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
-    let mut memory = [0u8; 0x20];
+    let mut memory = [0u8; 0x40];
     memory[0..4].copy_from_slice(&0x6Fu32.to_le_bytes());
     memory[4..8].copy_from_slice(&0x99u32.to_le_bytes());
 
     println!(
-        "{}",
-        <dyn MyStruct as Viewable::<dyn MyStruct>>::MEMORY_SIZE
+        "MyStruct size = 0x{:X}",
+        <MyStruct as SizedViewable>::memory_size()
     );
 
-    let memory = Arc::new(memory);
     {
-        let object = Reference::<dyn MyStruct>::new(memory.clone(), 0x00);
-        println!("field_a = {}", object.field_a()?);
-        println!("field_b = {}", object.field_b()?);
+        let object = Reference::<MyStruct, _>::new(memory.as_slice(), 0x00);
+        println!("field_a = {:X}", object.field_a()?);
+        println!("field_b = {:X}", object.field_b()?);
     }
 
     {
-        let object = Copy::<dyn MyStruct>::read_object(&*memory, 0x00)?;
-        println!("field_a = {}", object.field_a()?);
-        println!("field_b = {}", object.field_b()?);
+        let object = Copy::<MyStruct>::read_from_memory(&memory.as_slice(), 0x00)?;
+        println!("field_a = {:X}", object.field_a()?);
+        println!("field_b = {:X}", object.field_b()?);
     }
 
     Ok(())
@@ -62,7 +55,7 @@ struct MyStruct {
 
     /// Sized array of other raw_structs
     #[field(offset = 0x10)]
-    pub field_d: Ptr64<dyn SizedArray<dyn MyArrayElement, 0x20>>,
+    pub field_d: Ptr64<[Copy<MyArrayElement>; 0x20]>,
 
     /// Array to another copyable
     #[field(offset = 0x10)]
@@ -70,19 +63,18 @@ struct MyStruct {
 
     /// Advanced array to other raw_structs
     #[field(offset = 0x18)]
-    pub field_f: Ptr64<dyn Array<dyn MyStruct>>,
+    pub field_f: Ptr64<[Copy<MyStruct>]>,
 
     /// Advanced array to other raw_structs
     #[field(offset = 0x18)]
-    pub field_fb: Ptr64<dyn Array<u64>>,
+    pub field_fb: Ptr64<[u64]>,
 
     #[field(offset = 0x20)]
     pub field_g: [u8; 0x20],
 }
 
 #[raw_struct(size = 0x44)]
-struct MyStructExt {
+struct MyStructExt /* : MyStruct */ {
     #[field(offset = 0x40)]
     pub ext_field_a: u32,
 }
-impl MyStruct for dyn MyStructExt {}

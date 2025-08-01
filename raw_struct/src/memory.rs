@@ -1,5 +1,6 @@
-use alloc::boxed::Box;
 use core::{
+    self,
+    convert::Infallible,
     mem::{
         self,
         MaybeUninit,
@@ -7,44 +8,85 @@ use core::{
     slice,
 };
 
-use crate::error::{
-    AccessViolation,
-    Error,
+use crate::{
+    error::OutOfBoundsViolation,
+    MemoryDecodeError,
 };
 
 pub trait MemoryView: Send + Sync {
-    fn read_memory(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Error>;
+    type AccessError: 'static;
+
+    fn read_memory(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Self::AccessError>;
 }
 
-impl<T: Copy + Send + Sync> MemoryView for T {
-    fn read_memory(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Error> {
-        let src_buffer = unsafe {
-            core::slice::from_raw_parts(self as *const _ as *const u8, core::mem::size_of_val(self))
-        };
+impl<M: MemoryView> MemoryView for &M {
+    type AccessError = M::AccessError;
 
+    fn read_memory(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Self::AccessError> {
+        M::read_memory(&self, offset, buffer)
+    }
+}
+
+impl MemoryView for &[u8] {
+    type AccessError = OutOfBoundsViolation;
+
+    fn read_memory(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Self::AccessError> {
         let offset = offset as usize;
-        if offset + buffer.len() > src_buffer.len() {
-            return Err(Box::new(AccessViolation));
+        if offset + buffer.len() > self.len() {
+            return Err(OutOfBoundsViolation {
+                access_offset: offset,
+                access_len: buffer.len(),
+
+                src_len: self.len(),
+            });
         }
 
-        buffer.copy_from_slice(&src_buffer[offset..offset + buffer.len()]);
+        buffer.copy_from_slice(&self[offset..offset + buffer.len()]);
         Ok(())
     }
 }
 
+/// Decode an object from memory view
 pub trait FromMemoryView: Sized {
-    fn read_object(view: &dyn MemoryView, offset: u64) -> Result<Self, Error>;
+    type DecodeError;
+
+    fn read_object<M: MemoryView>(
+        view: &M,
+        offset: u64,
+    ) -> Result<Self, MemoryDecodeError<M::AccessError, Self::DecodeError>>;
+
     // fn read_boxed(view: &dyn MemoryView, offset: u64) -> Result<Box<Self>, Box<dyn error::ErrorType>>;
 }
 
+/// By default all copy traits are decodeable from memory.
+// FIXME: Remove this as it's ub for invalid values. Explicitly implement this trait for certain types instead!
 impl<T: Copy> FromMemoryView for T {
-    fn read_object(view: &dyn MemoryView, offset: u64) -> Result<Self, Error> {
+    type DecodeError = Infallible;
+
+    fn read_object<M: MemoryView>(
+        view: &M,
+        offset: u64,
+    ) -> Result<Self, MemoryDecodeError<M::AccessError, Self::DecodeError>> {
         let mut result = MaybeUninit::uninit();
-        let size = mem::size_of_val(&result);
+        let size = mem::size_of::<T>();
 
         let buffer = unsafe { slice::from_raw_parts_mut(&mut result as *mut _ as *mut u8, size) };
-        view.read_memory(offset, buffer)?;
+        view.read_memory(offset, buffer)
+            .map_err(MemoryDecodeError::MemoryAccess)?;
 
         Ok(unsafe { result.assume_init() })
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::memory::FromMemoryView;
+
+    #[test]
+    fn test_typing() {
+        let memory = &[0x01u8, 0x00, 0x00, 0x00];
+
+        let x = u32::read_object(&memory.as_slice(), 0x00);
+        assert_eq!(x, Ok(0x01));
     }
 }

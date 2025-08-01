@@ -1,22 +1,23 @@
-use alloc::borrow::Cow;
+use core::mem;
 
-use crate::memory::MemoryView;
+use crate::MemoryView;
 
-pub trait ViewableBase: Send + Sync {
-    fn object_memory(&self) -> &dyn MemoryView;
+pub trait ViewableImplementation<M> {
+    fn memory_view(&self) -> &M;
+    fn into_memory_view(self) -> M;
 }
 
-pub trait ViewableImplementation<M: MemoryView, T: ?Sized>: ViewableBase {
-    fn memory(&self) -> &M;
-    fn as_trait(&self) -> &T;
+pub trait Viewable {
+    type Implementation<M: MemoryView>: ViewableImplementation<M>;
+
+    fn name() -> &'static str;
+    fn from_memory<M: MemoryView>(memory: M) -> Self::Implementation<M>;
 }
 
-pub trait Viewable<T: ?Sized>: 'static {
-    type Memory: Copy + Send + Sync;
-    type Implementation<M: MemoryView + 'static>: ViewableImplementation<M, T>;
+pub trait SizedViewable: Viewable {
+    type Memory: Clone + Copy + Send + Sync;
 
-    const MEMORY_SIZE: usize = core::mem::size_of::<Self::Memory>();
-
-    fn create<M: MemoryView + 'static>(memory: M) -> Self::Implementation<M>;
-    fn name() -> Cow<'static, str>;
+    fn memory_size() -> usize {
+        mem::size_of::<Self::Memory>()
+    }
 }

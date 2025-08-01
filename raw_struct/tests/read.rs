@@ -21,7 +21,7 @@ fn test_read() {
     memory[0..4].copy_from_slice(&0xDEADBEEFu32.to_le_bytes());
     memory[4..8].copy_from_slice(&0x99u32.to_le_bytes());
 
-    let object = Copy::<dyn Dummy>::new(memory);
+    let object = Copy::<Dummy>::new(memory);
     assert_eq!(object.field_a().unwrap(), 0xDEADBEEF);
     assert_eq!(object.field_b().unwrap(), 0x99);
     assert_eq!(object.field_c().unwrap(), [0u8; 0x08]);
