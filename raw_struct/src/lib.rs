@@ -10,6 +10,7 @@ pub use error::{
 
 mod memory;
 pub use memory::{
+    CopyConstructable,
     FromMemoryView,
     MemoryView,
 };

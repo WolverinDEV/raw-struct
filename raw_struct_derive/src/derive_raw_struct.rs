@@ -218,7 +218,7 @@ fn generate_reference_accessors(fields: &[(FieldArgs, Field)]) -> Result<TokenSt
             })
             .collect::<Result<Vec<_>>>()?;
 
-        let vis = field.vis;
+        let vis = &field.vis;
         result.push(quote! {
             #(#attrs)*
             #[must_use]

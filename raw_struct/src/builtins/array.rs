@@ -8,6 +8,7 @@ use core::{
 
 use crate::{
     Copy,
+    CopyConstructable,
     FromMemoryView,
     MemoryDecodeError,
     MemoryView,
@@ -31,17 +32,26 @@ impl<T: FromMemoryView> dyn Array<T> {
         let offset = (index * mem::size_of::<T>()) as u64;
         T::read_object(memory, self.start_address() + offset)
     }
+}
 
+impl<T: CopyConstructable> dyn Array<T> {
     pub fn elements<M: MemoryView>(
         &self,
         memory: &M,
         range: Range<usize>,
-    ) -> Result<Vec<T>, MemoryDecodeError<M::AccessError, T::DecodeError>> {
+    ) -> Result<Vec<T>, M::AccessError> {
         let element_count = range.end - range.start;
         let mut result = Vec::with_capacity(element_count);
 
-        for index in range {
-            result.push(self.element_at(memory, index)?);
+        let result_buffer = unsafe {
+            slice::from_raw_parts_mut(
+                result.as_mut_ptr() as *mut u8,
+                element_count * mem::size_of::<T>(),
+            )
+        };
+        memory.read_memory((range.start * mem::size_of::<T>()) as u64, result_buffer)?;
+        unsafe {
+            result.set_len(element_count);
         }
 
         Ok(result)

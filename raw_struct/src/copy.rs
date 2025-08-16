@@ -1,5 +1,4 @@
 use core::{
-    convert::Infallible,
     marker,
     mem::{
         self,
@@ -10,8 +9,7 @@ use core::{
 };
 
 use crate::{
-    FromMemoryView,
-    MemoryDecodeError,
+    CopyConstructable,
     MemoryView,
     OutOfBoundsViolation,
     Reference,
@@ -73,17 +71,6 @@ impl<T: SizedViewable> Copy<T> {
     }
 }
 
-impl<T: SizedViewable> FromMemoryView for Copy<T> {
-    type DecodeError = Infallible;
-
-    fn read_object<M: MemoryView>(
-        view: &M,
-        offset: u64,
-    ) -> Result<Self, MemoryDecodeError<M::AccessError, Self::DecodeError>> {
-        Self::read_from_memory(view, offset).map_err(MemoryDecodeError::MemoryAccess)
-    }
-}
-
 impl<T> Clone for Copy<T>
 where
     T: SizedViewable,
@@ -97,6 +84,13 @@ where
 }
 
 impl<T> marker::Copy for Copy<T>
+where
+    T: SizedViewable,
+    T::Implementation<CopyMemory<T::Memory>>: marker::Copy,
+{
+}
+
+impl<T> CopyConstructable for Copy<T>
 where
     T: SizedViewable,
     T::Implementation<CopyMemory<T::Memory>>: marker::Copy,
