@@ -57,15 +57,15 @@ impl<T: SizedViewable> Copy<T> {
         memory: &M,
         offset: u64,
     ) -> Result<Self, M::AccessError> {
-        let mut copy_memory = unsafe { MaybeUninit::<T::Memory>::uninit().assume_init() };
+        let mut copy_memory = MaybeUninit::<T::Memory>::uninit();
         memory.read_memory(offset, unsafe {
             slice::from_raw_parts_mut(
-                &mut copy_memory as *mut _ as *mut u8,
+                copy_memory.as_mut_ptr() as *mut u8,
                 mem::size_of::<T::Memory>(),
             )
         })?;
 
-        Ok(Self::new(copy_memory))
+        Ok(Self::new(unsafe { copy_memory.assume_init() }))
     }
 
     pub fn as_reference(&self) -> Reference<T, &CopyMemory<T::Memory>> {

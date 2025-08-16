@@ -355,15 +355,11 @@ pub fn raw_struct(attr: TokenStream, input: TokenStream) -> Result<TokenStream> 
         None
     };
 
-    let sized_impl = if let Some(memory) = args.memory {
-        Some(quote! {
-            impl #vanilla_impl_generics raw_struct::SizedViewable for #struct_name #vanilla_ty_generics #vanilla_where_clause {
-                type Memory = #memory;
-            }
-        })
-    } else {
-        None
-    };
+    let sized_impl = args.memory.map(|memory| quote! {
+        impl #vanilla_impl_generics raw_struct::SizedViewable for #struct_name #vanilla_ty_generics #vanilla_where_clause {
+            type Memory = #memory;
+        }
+    });
 
     Ok(quote! {
         #struct_def

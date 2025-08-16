@@ -112,7 +112,7 @@ impl<T> Viewable for MyTypedStruct<T> {
     fn from_memory<M: MemoryView>(memory: M) -> Self::Implementation<M> {
         MyTypedStruct {
             memory,
-            _type: PhantomData::default(),
+            _type: Default::default(),
         }
     }
 }

@@ -23,7 +23,7 @@ impl<M: MemoryView> MemoryView for &M {
     type AccessError = M::AccessError;
 
     fn read_memory(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Self::AccessError> {
-        M::read_memory(&self, offset, buffer)
+        M::read_memory(self, offset, buffer)
     }
 }
 
