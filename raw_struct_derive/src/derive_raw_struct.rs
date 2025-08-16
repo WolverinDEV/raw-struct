@@ -183,7 +183,7 @@ fn generate_reference_accessors(fields: &[(FieldArgs, Field)]) -> Result<TokenSt
         result.push(quote! {
             #(#attrs)*
             #[must_use]
-            fn #name (&self) -> Result<#ty, raw_struct::MemoryDecodeError<#IDENT_MEMORY_VIEW_T::AccessError, <u32 as raw_struct::FromMemoryView>::DecodeError>> {
+            fn #name (&self) -> Result<#ty, raw_struct::MemoryDecodeError<#IDENT_MEMORY_VIEW_T::AccessError, <#ty as raw_struct::FromMemoryView>::DecodeError>> {
                 use raw_struct::{ ViewableImplementation, FromMemoryView };
 
                 let offset = (#offset) as u64;
