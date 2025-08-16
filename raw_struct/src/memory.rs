@@ -58,23 +58,81 @@ pub trait FromMemoryView: Sized {
     // fn read_boxed(view: &dyn MemoryView, offset: u64) -> Result<Box<Self>, Box<dyn error::ErrorType>>;
 }
 
-/// By default all copy traits are decodeable from memory.
-// FIXME: Remove this as it's ub for invalid values. Explicitly implement this trait for certain types instead!
-impl<T: Copy> FromMemoryView for T {
+macro_rules! impl_from_memory_copy {
+    ($type:ty) => {
+        impl FromMemoryView for $type {
+            type DecodeError = Infallible;
+
+            fn read_object<M: MemoryView>(
+                view: &M,
+                offset: u64,
+            ) -> Result<Self, MemoryDecodeError<M::AccessError, Self::DecodeError>> {
+                let mut result = MaybeUninit::uninit();
+
+                {
+                    let result_memory = unsafe {
+                        slice::from_raw_parts_mut(
+                            result.as_mut_ptr() as *mut u8,
+                            mem::size_of::<$type>(),
+                        )
+                    };
+
+                    view.read_memory(offset, result_memory)
+                        .map_err(MemoryDecodeError::MemoryAccess)?;
+                }
+
+                Ok(unsafe { result.assume_init() })
+            }
+        }
+
+        impl<const N: usize> FromMemoryView for [$type; N] {
+            type DecodeError = Infallible;
+
+            fn read_object<M: MemoryView>(
+                view: &M,
+                offset: u64,
+            ) -> Result<Self, MemoryDecodeError<M::AccessError, Self::DecodeError>> {
+                let mut result = MaybeUninit::uninit();
+
+                {
+                    let result_memory = unsafe {
+                        slice::from_raw_parts_mut(
+                            result.as_mut_ptr() as *mut u8,
+                            mem::size_of::<$type>() * N,
+                        )
+                    };
+
+                    view.read_memory(offset, result_memory)
+                        .map_err(MemoryDecodeError::MemoryAccess)?;
+                }
+
+                Ok(unsafe { result.assume_init() })
+            }
+        }
+    };
+}
+
+impl_from_memory_copy!(i8);
+impl_from_memory_copy!(u8);
+impl_from_memory_copy!(i16);
+impl_from_memory_copy!(u16);
+impl_from_memory_copy!(i32);
+impl_from_memory_copy!(u32);
+impl_from_memory_copy!(i64);
+impl_from_memory_copy!(u64);
+
+impl_from_memory_copy!(f32);
+impl_from_memory_copy!(f64);
+
+impl FromMemoryView for bool {
     type DecodeError = Infallible;
 
     fn read_object<M: MemoryView>(
         view: &M,
         offset: u64,
     ) -> Result<Self, MemoryDecodeError<M::AccessError, Self::DecodeError>> {
-        let mut result = MaybeUninit::uninit();
-        let size = mem::size_of::<T>();
-
-        let buffer = unsafe { slice::from_raw_parts_mut(&mut result as *mut _ as *mut u8, size) };
-        view.read_memory(offset, buffer)
-            .map_err(MemoryDecodeError::MemoryAccess)?;
-
-        Ok(unsafe { result.assume_init() })
+        let value = u8::read_object(view, offset)?;
+        Ok(value > 0)
     }
 }
 

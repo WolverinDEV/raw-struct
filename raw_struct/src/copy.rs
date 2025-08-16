@@ -1,4 +1,5 @@
 use core::{
+    convert::Infallible,
     marker,
     mem::{
         self,
@@ -9,6 +10,8 @@ use core::{
 };
 
 use crate::{
+    FromMemoryView,
+    MemoryDecodeError,
     MemoryView,
     OutOfBoundsViolation,
     Reference,
@@ -67,6 +70,17 @@ impl<T: SizedViewable> Copy<T> {
 
     pub fn as_reference(&self) -> Reference<T, &CopyMemory<T::Memory>> {
         Reference::new(self.inner.memory_view(), 0x00)
+    }
+}
+
+impl<T: SizedViewable> FromMemoryView for Copy<T> {
+    type DecodeError = Infallible;
+
+    fn read_object<M: MemoryView>(
+        view: &M,
+        offset: u64,
+    ) -> Result<Self, MemoryDecodeError<M::AccessError, Self::DecodeError>> {
+        Self::read_from_memory(view, offset).map_err(MemoryDecodeError::MemoryAccess)
     }
 }
 

@@ -30,6 +30,20 @@ impl<T: ?Sized> Clone for Ptr64<T> {
 }
 impl<T: ?Sized> marker::Copy for Ptr64<T> {}
 
+impl<T: ?Sized> FromMemoryView for Ptr64<T> {
+    type DecodeError = <u64 as FromMemoryView>::DecodeError;
+
+    fn read_object<M: MemoryView>(
+        view: &M,
+        offset: u64,
+    ) -> Result<Self, MemoryDecodeError<M::AccessError, Self::DecodeError>> {
+        Ok(Self {
+            address: u64::read_object(view, offset)?,
+            _type: Default::default(),
+        })
+    }
+}
+
 impl<T: ?Sized> Ptr64<T> {
     pub fn is_null(&self) -> bool {
         self.address == 0
