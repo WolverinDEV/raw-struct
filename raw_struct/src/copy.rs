@@ -22,7 +22,7 @@ use crate::{
 #[derive(Clone, Copy)]
 pub struct CopyMemory<M: marker::Copy>(pub M);
 
-impl<M: marker::Copy + std::marker::Sync + std::marker::Send> MemoryView for CopyMemory<M> {
+impl<M: marker::Copy> MemoryView for CopyMemory<M> {
     type AccessError = OutOfBoundsViolation;
 
     fn read_memory(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Self::AccessError> {

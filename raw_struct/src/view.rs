@@ -15,7 +15,7 @@ pub trait Viewable {
 }
 
 pub trait SizedViewable: Viewable {
-    type Memory: Clone + Copy + Send + Sync;
+    type Memory: Clone + Copy;
 
     fn memory_size() -> usize {
         mem::size_of::<Self::Memory>()

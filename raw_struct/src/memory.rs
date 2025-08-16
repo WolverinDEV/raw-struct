@@ -13,8 +13,8 @@ use crate::{
     MemoryDecodeError,
 };
 
-pub trait MemoryView: Send + Sync {
-    type AccessError: 'static;
+pub trait MemoryView {
+    type AccessError;
 
     fn read_memory(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Self::AccessError>;
 }
