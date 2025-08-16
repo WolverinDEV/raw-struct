@@ -12,5 +12,5 @@ version = "0.2.0"
 edition = "2021"
 authors = ["Markus Hadenfeldt <mhadenfeldt@did.science>"]
 description = "raw_struct is a Rust procedural macro for easily declaring C-style structs that reference local or external memory, based on your memory implementation. It generates appropiate getter methods for easy access."
-repository = "https://github.com/WolverinDEV/lazy-link"
+repository = "https://github.com/WolverinDEV/raw-struct"
 license-file = "LICENSE"
