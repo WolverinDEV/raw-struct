@@ -48,7 +48,7 @@ impl<T: Viewable, M: MemoryView> Reference<T, M> {
         }
     }
 
-    pub fn reference_address(&self) -> u64 {
+    pub fn reference_memory_address(&self) -> u64 {
         self.inner.memory_view().address()
     }
 

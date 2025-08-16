@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 }
 
 #[raw_struct(memory = "([u8; 0x10], T)")]
-struct Container<T: marker::Copy + FromMemoryView + Send + Sync + 'static> {
+struct Container<T: marker::Copy + FromMemoryView> {
     #[field(offset = 0x00)]
     pub var_a: u64,
 

@@ -7,14 +7,17 @@ use raw_struct::{
     builtins::Ptr64,
     raw_struct,
     Copy,
+    FromMemoryView,
     Reference,
     SizedViewable,
 };
 
 fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
-    let mut memory = [0u8; 0x40];
+    let mut memory = [0u8; 0x44];
     memory[0..4].copy_from_slice(&0x6Fu32.to_le_bytes());
     memory[4..8].copy_from_slice(&0x99u32.to_le_bytes());
+    memory[4..8].copy_from_slice(&0x99u32.to_le_bytes());
+    memory[0x40..][..4].copy_from_slice(&0xAAu32.to_le_bytes());
 
     println!(
         "MyStruct size = 0x{:X}",
@@ -25,6 +28,10 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         let object = Reference::<MyStruct, _>::new(memory.as_slice(), 0x00);
         println!("field_a = {:X}", object.field_a()?);
         println!("field_b = {:X}", object.field_b()?);
+
+        let object = object.cast::<MyStructExt>();
+        println!("ext_field_a = {:X}", object.ext_field_a()?);
+        println!("field_base = {:X}", object.field_base()?);
     }
 
     {
@@ -73,8 +80,14 @@ struct MyStruct {
     pub field_g: [u8; 0x20],
 }
 
-#[raw_struct(size = 0x44)]
-struct MyStructExt /* : MyStruct */ {
+#[raw_struct]
+struct MyStructBase<T: FromMemoryView> {
+    #[field(offset = 0x00)]
+    pub field_base: T,
+}
+
+#[raw_struct(size = 0x44, inherits = "MyStructBase::<u32>")]
+struct MyStructExt {
     #[field(offset = 0x40)]
     pub ext_field_a: u32,
 }
