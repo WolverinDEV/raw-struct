@@ -218,10 +218,11 @@ fn generate_reference_accessors(fields: &[(FieldArgs, Field)]) -> Result<TokenSt
             })
             .collect::<Result<Vec<_>>>()?;
 
+        let vis = field.vis;
         result.push(quote! {
             #(#attrs)*
             #[must_use]
-            fn #name (&self) -> Result<#ty, raw_struct::MemoryDecodeError<#IDENT_MEMORY_VIEW_T::AccessError, <#ty as raw_struct::FromMemoryView>::DecodeError>> {
+            #vis fn #name (&self) -> Result<#ty, raw_struct::MemoryDecodeError<#IDENT_MEMORY_VIEW_T::AccessError, <#ty as raw_struct::FromMemoryView>::DecodeError>> {
                 use raw_struct::{ ViewableImplementation, FromMemoryView };
 
                 let offset = (#offset) as u64;
