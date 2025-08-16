@@ -18,10 +18,10 @@ impl fmt::Display for OutOfBoundsViolation {
     }
 }
 
-#[cfg(not(feature = "no_std"))]
+#[cfg(feature = "std")]
 impl std::error::Error for OutOfBoundsViolation {}
 
-#[cfg(feature = "no_std")]
+#[cfg(not(feature = "std"))]
 impl core::error::Error for OutOfBoundsViolation {}
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
@@ -39,8 +39,8 @@ impl<A: Display, V: Display> fmt::Display for MemoryDecodeError<A, V> {
     }
 }
 
-#[cfg(not(feature = "no_std"))]
+#[cfg(feature = "std")]
 impl<A: Display + Debug, V: Display + Debug> std::error::Error for MemoryDecodeError<A, V> {}
 
-#[cfg(feature = "no_std")]
+#[cfg(not(feature = "std"))]
 impl<A: Display + Debug, V: Display + Debug> core::error::Error for MemoryDecodeError<A, V> {}

@@ -27,6 +27,15 @@ impl<M: MemoryView> MemoryView for &M {
     }
 }
 
+#[cfg(feature = "alloc")]
+impl<M: ?Sized + MemoryView> MemoryView for alloc::sync::Arc<M> {
+    type AccessError = M::AccessError;
+
+    fn read_memory(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Self::AccessError> {
+        M::read_memory(self, offset, buffer)
+    }
+}
+
 impl MemoryView for &[u8] {
     type AccessError = OutOfBoundsViolation;
 

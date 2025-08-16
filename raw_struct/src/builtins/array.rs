@@ -1,9 +1,6 @@
-use alloc::vec::Vec;
 use core::{
     self,
     mem,
-    ops::Range,
-    slice,
 };
 
 use crate::{
@@ -35,16 +32,17 @@ impl<T: FromMemoryView> dyn Array<T> {
 }
 
 impl<T: CopyConstructable> dyn Array<T> {
+    #[cfg(feature = "alloc")]
     pub fn elements<M: MemoryView>(
         &self,
         memory: &M,
-        range: Range<usize>,
-    ) -> Result<Vec<T>, M::AccessError> {
+        range: crate::Range<usize>,
+    ) -> Result<alloc::vec::Vec<T>, M::AccessError> {
         let element_count = range.end - range.start;
-        let mut result = Vec::with_capacity(element_count);
+        let mut result = alloc::vec::Vec::with_capacity(element_count);
 
         let result_buffer = unsafe {
-            slice::from_raw_parts_mut(
+            core::slice::from_raw_parts_mut(
                 result.as_mut_ptr() as *mut u8,
                 element_count * mem::size_of::<T>(),
             )
@@ -64,12 +62,13 @@ impl<T: SizedViewable> dyn Array<T> {
         Reference::new(memory, self.start_address() + offset)
     }
 
+    #[cfg(feature = "alloc")]
     pub fn elements_reference<M: MemoryView + Clone>(
         &self,
         memory: M,
-        range: Range<usize>,
-    ) -> Vec<Reference<T, M>> {
-        Vec::from_iter(range.map(|index| {
+        range: core::range::legacy::Range<usize>,
+    ) -> alloc::vec::Vec<Reference<T, M>> {
+        alloc::vec::Vec::from_iter(range.map(|index| {
             Reference::new(
                 memory.clone(),
                 self.start_address() + (index * T::memory_size()) as u64,
@@ -86,16 +85,17 @@ impl<T: SizedViewable> dyn Array<T> {
         Copy::read_from_memory(memory, self.start_address() + offset)
     }
 
+    #[cfg(feature = "alloc")]
     pub fn elements_copy<M: MemoryView>(
         &self,
         memory: &M,
-        range: Range<usize>,
-    ) -> Result<Vec<Copy<T>>, M::AccessError> {
+        range: crate::Range<usize>,
+    ) -> Result<alloc::vec::Vec<Copy<T>>, M::AccessError> {
         let element_count = range.end - range.start;
-        let mut result = Vec::<T::Memory>::with_capacity(element_count);
+        let mut result = alloc::vec::Vec::<T::Memory>::with_capacity(element_count);
 
         unsafe {
-            let buffer = slice::from_raw_parts_mut(
+            let buffer = core::slice::from_raw_parts_mut(
                 result.as_mut_ptr() as *mut u8,
                 element_count * T::memory_size(),
             );
@@ -104,7 +104,10 @@ impl<T: SizedViewable> dyn Array<T> {
             result.set_len(element_count);
         };
 
-        Ok(result.into_iter().map(Copy::<T>::new).collect::<Vec<_>>())
+        Ok(result
+            .into_iter()
+            .map(Copy::<T>::new)
+            .collect::<alloc::vec::Vec<_>>())
     }
 }
 
