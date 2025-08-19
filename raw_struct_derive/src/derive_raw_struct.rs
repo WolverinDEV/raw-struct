@@ -108,6 +108,7 @@ impl Parse for FieldArgs {
 struct StructArgs {
     memory: Option<TokenStream>,
     inherits: Option<Path>,
+    resolver: Path,
 }
 
 impl Parse for StructArgs {
@@ -118,6 +119,7 @@ impl Parse for StructArgs {
         let mut size = None;
         let mut memory = None;
         let mut inherits = None;
+        let mut resolver = None;
 
         for kv in &vars {
             if kv.path.is_ident("size") {
@@ -138,6 +140,11 @@ impl Parse for StructArgs {
                     Lit::Str(value) => inherits = Some(value.parse::<Path>()?),
                     _ => return Err(Error::new(kv.lit.span(), "expected a string")),
                 }
+            } else if kv.path.is_ident("resolver") {
+                match &kv.lit {
+                    Lit::Str(value) => resolver = Some(value.parse::<Path>()?),
+                    _ => return Err(Error::new(kv.lit.span(), "expected a string")),
+                }
             } else {
                 return Err(Error::new(kv.path.span(), "unknown attribute"));
             }
@@ -147,6 +154,7 @@ impl Parse for StructArgs {
         Ok(Self {
             memory: memory.or(size),
             inherits,
+            resolver: resolver.unwrap_or_else(|| syn::parse_quote! { ::core::convert::identity }),
         })
     }
 }
@@ -201,7 +209,10 @@ fn extract_struct_fields(fields: &Fields) -> Result<Vec<(FieldArgs, Field)>> {
     Ok(result)
 }
 
-fn generate_reference_accessors(fields: &[(FieldArgs, Field)]) -> Result<TokenStream> {
+fn generate_reference_accessors(
+    resolver: &Path,
+    fields: &[(FieldArgs, Field)],
+) -> Result<TokenStream> {
     let mut result = Vec::<TokenStream>::with_capacity(fields.len() * 2);
 
     for (field_args, field) in fields.iter() {
@@ -234,7 +245,7 @@ fn generate_reference_accessors(fields: &[(FieldArgs, Field)]) -> Result<TokenSt
             #vis fn #name (&self) -> Result<#ty, raw_struct::MemoryDecodeError<#IDENT_MEMORY_VIEW_T::AccessError, <#ty as raw_struct::FromMemoryView>::DecodeError>> {
                 use raw_struct::{ ViewableImplementation, FromMemoryView };
 
-                let offset = (#offset) as u64;
+                let offset = #resolver(#offset) as u64;
                 <#ty as FromMemoryView>::read_object(self.memory_view(), offset)
             }
         });
@@ -301,7 +312,7 @@ pub fn raw_struct(attr: TokenStream, input: TokenStream) -> Result<TokenStream> 
     let struct_name_str = format!("{}", target.ident);
 
     let fields = extract_struct_fields(&target.fields)?;
-    let accessors = generate_reference_accessors(&fields)?;
+    let accessors = generate_reference_accessors(&args.resolver, &fields)?;
 
     let (vanilla_impl_generics, vanilla_ty_generics, vanilla_where_clause) =
         target.generics.split_for_impl();
