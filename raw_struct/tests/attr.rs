@@ -9,7 +9,16 @@ fn test_getter_rename() {
     struct Dummy {
         #[field(offset = 0x00, getter = "get_field_d")]
         field_a: u64,
+
+        #[field(0x08)]
+        field_b: u64,
     }
+
+    // #[raw_struct(size = 0x08, resolver = "my_dummy_function")]
+    // struct Dummy2 {
+    //     #[field(0x00)]
+    //     field_my_flag: bool,
+    // }
 
     let instance = Copy::<Dummy>::new([0x00; 0x08]);
     instance.get_field_d().unwrap();

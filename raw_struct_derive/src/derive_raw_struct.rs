@@ -8,6 +8,7 @@ use quote::{
 };
 use syn::{
     parse::{
+        discouraged::Speculative,
         Parse,
         ParseStream,
     },
@@ -52,8 +53,16 @@ struct FieldArgs {
 
 impl Parse for FieldArgs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let vars: Punctuated<MetaNameValue, syn::token::Comma> =
-            Punctuated::<MetaNameValue, Token![,]>::parse_terminated(input)?;
+        let fork = input.fork();
+        let Ok(vars) = fork.call(Punctuated::<MetaNameValue, Token![,]>::parse_terminated) else {
+            /* the input is already the offset value */
+            return Ok(Self {
+                offset: input.parse()?,
+                getter: None,
+                _setter: None,
+            });
+        };
+        input.advance_to(&fork);
 
         let mut offset = None;
 
