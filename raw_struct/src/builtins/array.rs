@@ -1,3 +1,5 @@
+#[cfg(feature = "alloc")]
+use core::ops::Range;
 use core::{
     self,
     mem,
@@ -36,7 +38,7 @@ impl<T: CopyConstructable> dyn Array<T> {
     pub fn elements<M: MemoryView>(
         &self,
         memory: &M,
-        range: crate::Range<usize>,
+        range: Range<usize>,
     ) -> Result<alloc::vec::Vec<T>, M::AccessError> {
         let element_count = range.end - range.start;
         let mut result = alloc::vec::Vec::with_capacity(element_count);
@@ -66,7 +68,7 @@ impl<T: SizedViewable> dyn Array<T> {
     pub fn elements_reference<M: MemoryView + Clone>(
         &self,
         memory: M,
-        range: core::range::legacy::Range<usize>,
+        range: Range<usize>,
     ) -> alloc::vec::Vec<Reference<T, M>> {
         alloc::vec::Vec::from_iter(range.map(|index| {
             Reference::new(
@@ -89,7 +91,7 @@ impl<T: SizedViewable> dyn Array<T> {
     pub fn elements_copy<M: MemoryView>(
         &self,
         memory: &M,
-        range: crate::Range<usize>,
+        range: Range<usize>,
     ) -> Result<alloc::vec::Vec<Copy<T>>, M::AccessError> {
         let element_count = range.end - range.start;
         let mut result = alloc::vec::Vec::<T::Memory>::with_capacity(element_count);

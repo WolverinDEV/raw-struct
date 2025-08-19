@@ -1,13 +1,7 @@
-#![feature(new_range_api)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
-
-#[cfg(all(feature = "alloc", not(feature = "std")))]
-pub(crate) use core::range::Range;
-#[cfg(all(feature = "std"))]
-pub(crate) use std::range::Range;
 
 pub mod builtins;
 
