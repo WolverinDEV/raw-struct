@@ -6,8 +6,14 @@ mod derive_raw_struct;
 /// Marks a struct as a representation of a C-style struct with memory-mapped fields.
 ///
 /// # Supported Attributes:  
-/// - `size = "<struct size>"` (required)  
-///   Defines the total memory size of the struct.
+/// - `size = "<struct size>"`  
+///   Defines the total memory size of the struct.  
+///   Structs attributed with size will implement the `SizedViewable` trait and be `Copy`able.  
+///  
+/// - `resolver = "my_resolver_fn"`  
+///   Define a custom offset resolver where the raw field attribute value of `offset` will be passed into.
+///   This allows a relaxiation of the `offset` value of the field as it may be anything. The function must return an u64.
+///   By default the resolver is `core::convert::identity`.
 ///
 /// Each field within the struct must be annotated with the `#[field(...)]` attribute.
 ///
