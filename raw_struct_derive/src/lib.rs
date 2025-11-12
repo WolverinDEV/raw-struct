@@ -24,9 +24,6 @@ mod derive_raw_struct;
 ///   **Note:** If a function call is used, the function will be executed each time the getter is invoked
 ///   to determine the field's offset.
 ///
-/// - `getter = "<getter name>"` (optional)  
-///   Defines a custom name for the field's getter method.
-///
 /// # Example:
 /// ```ignore
 /// #[raw_struct(size = 0x10)]
@@ -37,7 +34,7 @@ mod derive_raw_struct;
 ///     #[field(offset = 0x04)]
 ///     pub field_b: u32,
 ///
-///     #[field(offset = 0x08, getter = "get_field_c")]
+///     #[field(offset = 0x08)]
 ///     pub field_c: [u8; 0x8],
 /// }
 /// ```

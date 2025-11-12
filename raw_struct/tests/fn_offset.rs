@@ -26,6 +26,6 @@ fn get_offset() -> u64 {
 fn test() {
     assert!(!FN_CALLED.load(Ordering::Relaxed));
     let value = Copy::<Dummy>::new([0x0; 0x10]);
-    value.field_01().unwrap();
+    value.read_field(Dummy::field_01).unwrap();
     assert!(FN_CALLED.load(Ordering::Relaxed));
 }

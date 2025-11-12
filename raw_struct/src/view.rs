@@ -1,23 +1,56 @@
-use core::mem;
+use core::{
+    marker::PhantomData,
+    mem,
+};
 
-use crate::MemoryView;
-
-pub trait ViewableImplementation<M> {
-    fn memory_view(&self) -> &M;
-    fn into_memory_view(self) -> M;
-}
+use crate::CopyConstructable;
 
 pub trait Viewable {
-    type Implementation<M: MemoryView>: ViewableImplementation<M>;
-
     fn name() -> &'static str;
-    fn from_memory<M: MemoryView>(memory: M) -> Self::Implementation<M>;
 }
 
-pub trait SizedViewable: Viewable {
-    type Memory: Clone + Copy;
+pub trait ViewableSized: Viewable {
+    type Memory: CopyConstructable;
 
     fn memory_size() -> usize {
         mem::size_of::<Self::Memory>()
+    }
+}
+
+/// Declare that one type extends the other
+/// ```rust
+/// # use raw_struct::ViewableExtends;
+///
+/// struct C_BaseClass;
+/// struct C_SubClass;
+///
+/// impl ViewableExtends<C_BaseClass> for C_SubClass {}
+/// ```
+pub trait ViewableExtends<T> {}
+
+// Every type extends itself
+impl<T> ViewableExtends<T> for T {}
+
+pub struct ViewableField<V, T> {
+    name: &'static str,
+    offset_fn: &'static dyn Fn() -> u64,
+    _type: PhantomData<(V, T)>,
+}
+
+impl<V, T> ViewableField<V, T> {
+    pub const fn define(name: &'static str, offset_fn: &'static dyn Fn() -> u64) -> Self {
+        Self {
+            name,
+            offset_fn,
+            _type: PhantomData {},
+        }
+    }
+
+    pub const fn name(&self) -> &'static str {
+        self.name
+    }
+
+    pub fn offset(&self) -> u64 {
+        (self.offset_fn)()
     }
 }

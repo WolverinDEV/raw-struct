@@ -1,7 +1,4 @@
-use proc_macro2::{
-    Span,
-    TokenStream,
-};
+use proc_macro2::TokenStream;
 use quote::{
     quote,
     ToTokens,
@@ -12,43 +9,25 @@ use syn::{
         Parse,
         ParseStream,
     },
-    parse_quote,
     punctuated::Punctuated,
     spanned::Spanned,
     Error,
     Expr,
     Field,
     Fields,
-    GenericArgument,
     GenericParam,
-    Ident,
     ItemStruct,
     Lit,
-    LitStr,
     MetaNameValue,
     Path,
-    PathArguments,
     Result,
     Token,
 };
 
-struct StaticIdent(&'static str);
-
-impl ToTokens for StaticIdent {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        Ident::new(self.0, Span::call_site()).to_tokens(tokens);
-    }
-}
-
-const IDENT_MEMORY_VIEW_T: StaticIdent = StaticIdent("_MemoryViewT");
-
 #[derive(Debug)]
 struct FieldArgs {
-    // field(offset = 0x00, getter = "", setter = "")
+    // field(offset = 0x00)
     offset: TokenStream,
-
-    getter: Option<Ident>,
-    _setter: Option<LitStr>,
 }
 
 impl Parse for FieldArgs {
@@ -58,16 +37,11 @@ impl Parse for FieldArgs {
             /* the input is already the offset value */
             return Ok(Self {
                 offset: input.parse()?,
-                getter: None,
-                _setter: None,
             });
         };
         input.advance_to(&fork);
 
         let mut offset = None;
-
-        let mut getter = None;
-        let mut setter = None;
 
         for kv in &vars {
             if kv.path.is_ident("offset") {
@@ -78,18 +52,6 @@ impl Parse for FieldArgs {
                     Lit::Str(value) => offset = Some(value.parse::<Expr>()?.to_token_stream()),
                     _ => return Err(Error::new(kv.lit.span(), "expected an interger or string")),
                 }
-            } else if kv.path.is_ident("getter") {
-                let Lit::Str(value) = &kv.lit else {
-                    return Err(Error::new(kv.lit.span(), "expected a string"));
-                };
-
-                getter = Some(value.parse()?);
-            } else if kv.path.is_ident("setter") {
-                let Lit::Str(value) = &kv.lit else {
-                    return Err(Error::new(kv.lit.span(), "expected a string"));
-                };
-
-                setter = Some(value.parse()?);
             } else {
                 return Err(Error::new(kv.path.span(), "unknown attribute"));
             }
@@ -97,9 +59,6 @@ impl Parse for FieldArgs {
 
         Ok(Self {
             offset: offset.ok_or(Error::new(vars.span(), "missing offset = \"...\""))?,
-
-            getter,
-            _setter: setter,
         })
     }
 }
@@ -159,31 +118,6 @@ impl Parse for StructArgs {
     }
 }
 
-fn add_type_param(path: &mut Path, ty: syn::Type) {
-    if let Some(last) = path.segments.last_mut() {
-        match &mut last.arguments {
-            PathArguments::None => {
-                // Turn `None` into `<T>`
-                last.arguments =
-                    PathArguments::AngleBracketed(syn::AngleBracketedGenericArguments {
-                        colon2_token: None,
-                        lt_token: Default::default(),
-                        args: vec![GenericArgument::Type(ty)].into_iter().collect(),
-                        gt_token: Default::default(),
-                    });
-            }
-            PathArguments::AngleBracketed(args) => {
-                // Already has <...>, just push
-                args.args.push(GenericArgument::Type(ty));
-            }
-            PathArguments::Parenthesized(_) => {
-                // Function-like path segment, can't add normal type params
-                panic!("cannot add type arguments to a function-like path segment");
-            }
-        }
-    }
-}
-
 fn extract_struct_fields(fields: &Fields) -> Result<Vec<(FieldArgs, Field)>> {
     let Fields::Named(fields) = fields else {
         return Err(Error::new(fields.span(), "only named fields supported"));
@@ -209,21 +143,15 @@ fn extract_struct_fields(fields: &Fields) -> Result<Vec<(FieldArgs, Field)>> {
     Ok(result)
 }
 
-fn generate_reference_accessors(
-    resolver: &Path,
-    fields: &[(FieldArgs, Field)],
-) -> Result<TokenStream> {
+fn generate_field_constants(resolver: &Path, fields: &[(FieldArgs, Field)]) -> Result<TokenStream> {
     let mut result = Vec::<TokenStream>::with_capacity(fields.len() * 2);
 
     for (field_args, field) in fields.iter() {
         let ty = &field.ty;
-        let name = if let Some(name) = &field_args.getter {
-            name
-        } else if let Some(ident) = &field.ident {
-            ident
-        } else {
+        let Some(ident) = &field.ident else {
             continue;
         };
+        let ident_str = format!("{ident}");
 
         let offset = &field_args.offset;
         let attrs = field
@@ -241,13 +169,10 @@ fn generate_reference_accessors(
         let vis = &field.vis;
         result.push(quote! {
             #(#attrs)*
-            #[must_use]
-            #vis fn #name (&self) -> Result<#ty, raw_struct::MemoryDecodeError<#IDENT_MEMORY_VIEW_T::AccessError, <#ty as raw_struct::FromMemoryView>::DecodeError>> {
-                use raw_struct::{ ViewableImplementation, FromMemoryView };
-
-                let offset = #resolver(#offset) as u64;
-                <#ty as FromMemoryView>::read_object(self.memory_view(), offset)
-            }
+            #[allow(non_upper_case_globals)]
+            #vis const #ident: &::raw_struct::ViewableField<Self, #ty> = &::raw_struct::ViewableField::define(#ident_str, &|| {
+                #resolver(#offset) as u64
+            });
         });
     }
 
@@ -267,14 +192,7 @@ fn generate_struct_definition(args: &StructArgs, target: &ItemStruct) -> Result<
 
     let vis = &target.vis;
     let name = &target.ident;
-
-    let struct_generics = {
-        let mut generics = target.generics.clone();
-        generics.params.push(syn::parse_quote! {
-            #IDENT_MEMORY_VIEW_T = ()
-        });
-        generics
-    };
+    let generics = &target.generics;
 
     let type_list = target
         .generics
@@ -287,20 +205,19 @@ fn generate_struct_definition(args: &StructArgs, target: &ItemStruct) -> Result<
         })
         .collect::<Vec<_>>();
 
-    let memory = if let Some(inherits) = &args.inherits {
-        let mut inherits = inherits.clone();
-        self::add_type_param(&mut inherits, parse_quote!(#IDENT_MEMORY_VIEW_T));
-        quote! { inner: #inherits }
+    let inherits = if let Some(inherits) = &args.inherits {
+        Some(quote! { impl ::raw_struct::ViewableExtends< #inherits > for #name {} })
     } else {
-        quote! { memory: #IDENT_MEMORY_VIEW_T }
+        None
     };
 
     Ok(quote! {
         #(#attributes)*
-        #vis struct #name #struct_generics {
-            #memory,
-            _type: std::marker::PhantomData<(#(#type_list,)*)>,
+        #vis struct #name #generics {
+            _generics: core::marker::PhantomData<(#(#type_list,)*)>,
         }
+
+        #inherits
     })
 }
 
@@ -312,72 +229,14 @@ pub fn raw_struct(attr: TokenStream, input: TokenStream) -> Result<TokenStream> 
     let struct_name_str = format!("{}", target.ident);
 
     let fields = extract_struct_fields(&target.fields)?;
-    let accessors = generate_reference_accessors(&args.resolver, &fields)?;
+    let field_constants = generate_field_constants(&args.resolver, &fields)?;
 
-    let (vanilla_impl_generics, vanilla_ty_generics, vanilla_where_clause) =
-        target.generics.split_for_impl();
-
-    let impl_generics = {
-        let mut generics = target.generics.clone();
-        generics.params.push(syn::parse_quote! {
-            #IDENT_MEMORY_VIEW_T: raw_struct::MemoryView
-        });
-        generics
-    };
-    let (impl_generics, impl_ty_generics, impl_where_clause) = impl_generics.split_for_impl();
+    let (impl_generics, ty_generics, where_clause) = target.generics.split_for_impl();
 
     let struct_def = self::generate_struct_definition(&args, &target)?;
 
-    let impl_impl = if let Some(_inherits) = &args.inherits {
-        quote! {
-            impl #impl_generics raw_struct::ViewableImplementation<#IDENT_MEMORY_VIEW_T> for #struct_name #impl_ty_generics #impl_where_clause {
-                fn memory_view(&self) -> &#IDENT_MEMORY_VIEW_T {
-                    self.inner.memory_view()
-                }
-
-                fn into_memory_view(self) -> #IDENT_MEMORY_VIEW_T {
-                    self.inner.into_memory_view()
-                }
-            }
-        }
-    } else {
-        quote! {
-            impl #impl_generics raw_struct::ViewableImplementation<#IDENT_MEMORY_VIEW_T> for #struct_name #impl_ty_generics #impl_where_clause {
-                fn memory_view(&self) -> &#IDENT_MEMORY_VIEW_T {
-                    &self.memory
-                }
-
-                fn into_memory_view(self) -> #IDENT_MEMORY_VIEW_T {
-                    self.memory
-                }
-            }
-        }
-    };
-
-    let impl_construct_from_memory = if let Some(inherits) = &args.inherits {
-        quote! { #struct_name { inner: #inherits ::from_memory(memory), _type: Default::default() } }
-    } else {
-        quote! { #struct_name { memory, _type: Default::default() } }
-    };
-
-    let deref_impl = if let Some(inherits) = &args.inherits {
-        let mut inherits = inherits.clone();
-        self::add_type_param(&mut inherits, parse_quote!(#IDENT_MEMORY_VIEW_T));
-        Some(quote! {
-            impl #impl_generics core::ops::Deref for #struct_name #impl_ty_generics #impl_where_clause {
-                type Target = #inherits;
-
-                fn deref(&self) -> &Self::Target {
-                    &self.inner
-                }
-            }
-        })
-    } else {
-        None
-    };
-
     let sized_impl = args.memory.map(|memory| quote! {
-        impl #vanilla_impl_generics raw_struct::SizedViewable for #struct_name #vanilla_ty_generics #vanilla_where_clause {
+        impl #impl_generics ::raw_struct::ViewableSized for #struct_name #ty_generics #where_clause {
             type Memory = #memory;
         }
     });
@@ -385,26 +244,16 @@ pub fn raw_struct(attr: TokenStream, input: TokenStream) -> Result<TokenStream> 
     Ok(quote! {
         #struct_def
 
-        impl #impl_generics #struct_name #impl_ty_generics #impl_where_clause {
-            #accessors
+        impl #impl_generics #struct_name #ty_generics #where_clause {
+            #field_constants
         }
 
-        #impl_impl
-
-        impl #vanilla_impl_generics raw_struct::Viewable for #struct_name #vanilla_ty_generics #vanilla_where_clause {
-            type Implementation<#IDENT_MEMORY_VIEW_T: raw_struct::MemoryView> = #struct_name #impl_ty_generics;
-
+        impl #impl_generics ::raw_struct::Viewable for #struct_name #ty_generics #where_clause {
             fn name() -> &'static str {
                 #struct_name_str
-            }
-
-            fn from_memory<#IDENT_MEMORY_VIEW_T: raw_struct::MemoryView>(memory: #IDENT_MEMORY_VIEW_T) -> Self::Implementation<#IDENT_MEMORY_VIEW_T> {
-                #impl_construct_from_memory
             }
         }
 
         #sized_impl
-
-        #deref_impl
     })
 }

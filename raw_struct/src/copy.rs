@@ -4,17 +4,19 @@ use core::{
         self,
         MaybeUninit,
     },
-    ops::Deref,
+    ops::{
+        Deref,
+        DerefMut,
+    },
     slice,
 };
 
 use crate::{
-    CopyConstructable,
+    memory::FromMemoryView,
     MemoryView,
     OutOfBoundsViolation,
     Reference,
-    SizedViewable,
-    ViewableImplementation,
+    ViewableSized,
 };
 
 #[derive(Clone, Copy)]
@@ -32,15 +34,15 @@ impl<M: marker::Copy> MemoryView for CopyMemory<M> {
 }
 
 /// A Copy represents an owned copy of the struct binary contents
-#[repr(transparent)]
-pub struct Copy<T: SizedViewable> {
-    inner: T::Implementation<CopyMemory<T::Memory>>,
+#[derive(Clone)]
+pub struct Copy<V: ViewableSized> {
+    inner: Reference<V, CopyMemory<V::Memory>>,
 }
 
-impl<T: SizedViewable> Copy<T> {
-    pub fn new(inner: T::Memory) -> Self {
+impl<V: ViewableSized> Copy<V> {
+    pub fn new(inner: V::Memory) -> Self {
         Self {
-            inner: T::from_memory(CopyMemory(inner)),
+            inner: Reference::new(CopyMemory(inner), 0x00),
         }
     }
 
@@ -55,52 +57,56 @@ impl<T: SizedViewable> Copy<T> {
         memory: &M,
         offset: u64,
     ) -> Result<Self, M::AccessError> {
-        let mut copy_memory = MaybeUninit::<T::Memory>::uninit();
-        memory.read_memory(offset, unsafe {
-            slice::from_raw_parts_mut(
-                copy_memory.as_mut_ptr() as *mut u8,
-                mem::size_of::<T::Memory>(),
-            )
-        })?;
-
-        Ok(Self::new(unsafe { copy_memory.assume_init() }))
-    }
-
-    pub fn as_reference(&self) -> Reference<T, &CopyMemory<T::Memory>> {
-        Reference::new(self.inner.memory_view(), 0x00)
+        Ok(Self::new(
+            V::Memory::read_object(memory, offset).map_err(|err| err.into_access_error())?,
+        ))
     }
 }
 
-impl<T> Clone for Copy<T>
-where
-    T: SizedViewable,
-    T::Implementation<CopyMemory<T::Memory>>: Clone,
-{
-    fn clone(&self) -> Self {
-        Self {
-            inner: self.inner.clone(),
-        }
-    }
-}
-
-impl<T> marker::Copy for Copy<T>
-where
-    T: SizedViewable,
-    T::Implementation<CopyMemory<T::Memory>>: marker::Copy,
-{
-}
-
-impl<T> CopyConstructable for Copy<T>
-where
-    T: SizedViewable,
-    T::Implementation<CopyMemory<T::Memory>>: marker::Copy,
-{
-}
-
-impl<T: SizedViewable> Deref for Copy<T> {
-    type Target = T::Implementation<CopyMemory<T::Memory>>;
+impl<V: ViewableSized> Deref for Copy<V> {
+    type Target = Reference<V, CopyMemory<V::Memory>>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
+
+impl<V: ViewableSized> DerefMut for Copy<V> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
+// impl<T> Clone for Copy<T>
+// where
+//     T: SizedViewable,
+//     T::Implementation<CopyMemory<T::Memory>>: Clone,
+// {
+//     fn clone(&self) -> Self {
+//         Self {
+//             inner: self.inner.clone(),
+//         }
+//     }
+// }
+
+// impl<T> marker::Copy for Copy<T>
+// where
+//     T: SizedViewable,
+//     T::Implementation<CopyMemory<T::Memory>>: marker::Copy,
+// {
+// }
+
+// impl<T> CopyConstructable for Copy<T>
+// where
+//     T: SizedViewable,
+//     T::Implementation<CopyMemory<T::Memory>>: marker::Copy,
+// {
+// }
+
+// impl<T: SizedViewable> Deref for Copy<T> {
+//     type Target = T::Implementation<CopyMemory<T::Memory>>;
+
+//     fn deref(&self) -> &Self::Target {
+//         &self.inner
+//     }
+// }

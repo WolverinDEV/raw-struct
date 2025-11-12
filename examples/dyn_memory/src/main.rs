@@ -9,7 +9,7 @@ use raw_struct::{
     Copy,
     CopyMemory,
     FromMemoryView,
-    SizedViewable,
+    ViewableSized,
 };
 
 fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     println!(
         "Memory size: 0x{:X}",
-        <Container::<u64> as SizedViewable>::memory_size()
+        <Container::<u64> as ViewableSized>::memory_size()
     );
     println!("Vat a = 0x{:X}", object.var_a()?);
     println!("Inner = 0x{:X}", object.inner()?);

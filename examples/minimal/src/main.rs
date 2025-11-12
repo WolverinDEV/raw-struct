@@ -9,7 +9,7 @@ use raw_struct::{
     Copy,
     FromMemoryView,
     Reference,
-    SizedViewable,
+    ViewableSized,
 };
 
 fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     println!(
         "MyStruct size = 0x{:X}",
-        <MyStruct as SizedViewable>::memory_size()
+        <MyStruct as ViewableSized>::memory_size()
     );
 
     {

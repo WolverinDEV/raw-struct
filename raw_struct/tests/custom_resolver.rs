@@ -31,5 +31,5 @@ fn test_custom_resolver() {
 
     let data = [0xFFu8, 0x10].as_slice();
     let value = Reference::<Dummy, _>::new(&data, 0x00);
-    assert_eq!(value.field_b(), Ok(0x10));
+    assert_eq!(value.read_field(Dummy::field_b), Ok(0x10));
 }

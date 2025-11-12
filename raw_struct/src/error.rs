@@ -1,7 +1,10 @@
-use core::fmt::{
-    self,
-    Debug,
-    Display,
+use core::{
+    convert::Infallible,
+    fmt::{
+        self,
+        Debug,
+        Display,
+    },
 };
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -28,6 +31,24 @@ impl core::error::Error for OutOfBoundsViolation {}
 pub enum MemoryDecodeError<A, V> {
     MemoryAccess(A),
     ValueDecode(V),
+}
+
+impl<A> MemoryDecodeError<A, Infallible> {
+    pub fn into_access_error(self) -> A {
+        match self {
+            Self::MemoryAccess(inner) => inner,
+            Self::ValueDecode(_) => unreachable!(),
+        }
+    }
+}
+
+impl<V> MemoryDecodeError<Infallible, V> {
+    pub fn into_decode_error(self) -> V {
+        match self {
+            Self::MemoryAccess(_) => unreachable!(),
+            Self::ValueDecode(inner) => inner,
+        }
+    }
 }
 
 impl<A: Display, V: Display> fmt::Display for MemoryDecodeError<A, V> {

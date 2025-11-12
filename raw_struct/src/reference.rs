@@ -1,78 +1,89 @@
 use core::{
     self,
-    ops::Deref,
+    marker::PhantomData,
 };
 
 use crate::{
     memory::MemoryView,
-    view::{
-        Viewable,
-        ViewableImplementation,
-    },
     Copy,
-    SizedViewable,
+    FromMemoryView,
+    MemoryDecodeError,
+    Viewable,
+    ViewableExtends,
+    ViewableField,
+    ViewableSized,
 };
 
-pub struct ReferenceMemory<M: MemoryView> {
-    address: u64,
-    memory: M,
-}
-
-impl<M: MemoryView> ReferenceMemory<M> {
-    pub fn address(&self) -> u64 {
-        self.address
-    }
-
-    pub fn memory_view(&self) -> &M {
-        &self.memory
-    }
-}
-
-impl<M: MemoryView> MemoryView for ReferenceMemory<M> {
-    type AccessError = M::AccessError;
-
-    fn read_memory(&self, offset: u64, buffer: &mut [u8]) -> Result<(), Self::AccessError> {
-        self.memory.read_memory(self.address + offset, buffer)
-    }
-}
-
 /// A reference to an object living in the underlying memory view.
-pub struct Reference<T: Viewable, M: MemoryView> {
-    inner: T::Implementation<ReferenceMemory<M>>,
+pub struct Reference<V, M: MemoryView> {
+    memory: M,
+    memory_offset: u64,
+    _type: PhantomData<V>,
 }
 
-impl<T: Viewable, M: MemoryView> Reference<T, M> {
+impl<T, M: MemoryView> Reference<T, M> {
     pub fn new(memory: M, address: u64) -> Self {
         Self {
-            inner: T::from_memory(ReferenceMemory { address, memory }),
+            memory,
+            memory_offset: address,
+            _type: Default::default(),
         }
     }
 
     pub fn reference_memory_address(&self) -> u64 {
-        self.inner.memory_view().address()
+        self.memory_offset
     }
 
     pub fn reference_memory(&self) -> &M {
-        self.inner.memory_view().memory_view()
+        &self.memory
     }
 
-    pub fn cast<V: Viewable>(self) -> Reference<V, M> {
+    pub fn cast<V>(self) -> Reference<V, M> {
         Reference {
-            inner: V::from_memory(self.inner.into_memory_view()),
+            memory: self.memory,
+            memory_offset: self.memory_offset,
+            _type: Default::default(),
         }
     }
 }
 
-impl<T: SizedViewable, M: MemoryView> Reference<T, M> {
-    pub fn create_copy(&self) -> Result<Copy<T>, M::AccessError> {
-        Copy::read_from_memory(self.memory_view(), 0x00)
+impl<T: Viewable, M: MemoryView> Reference<T, M> {
+    pub fn read_field<R: FromMemoryView, C>(
+        &self,
+        field: &ViewableField<C, R>,
+    ) -> Result<R, MemoryDecodeError<M::AccessError, R::DecodeError>>
+    where
+        T: ViewableExtends<C>,
+    {
+        R::read_object(&self.memory, self.memory_offset + field.offset())
+    }
+
+    pub fn reference_field<R, C>(&self, field: &ViewableField<C, R>) -> Reference<R, &M>
+    where
+        T: ViewableExtends<C>,
+    {
+        Reference::new(&self.memory, self.memory_offset + field.offset())
     }
 }
 
-impl<T: Viewable, M: MemoryView> Deref for Reference<T, M> {
-    type Target = T::Implementation<ReferenceMemory<M>>;
+impl<T: FromMemoryView, M: MemoryView> Reference<T, M> {
+    pub fn read(&self) -> Result<T, MemoryDecodeError<M::AccessError, T::DecodeError>> {
+        T::read_object(&self.memory, self.memory_offset)
+    }
+}
 
-    fn deref(&self) -> &Self::Target {
-        &self.inner
+impl<T: ViewableSized, M: MemoryView> Reference<T, M> {
+    pub fn create_copy(&self) -> Result<Copy<T>, M::AccessError> {
+        Copy::read_from_memory(&self.memory, self.memory_offset)
+    }
+}
+
+impl<T, M: MemoryView + Clone> Clone for Reference<T, M> {
+    fn clone(&self) -> Self {
+        Self {
+            memory: self.memory.clone(),
+            memory_offset: self.memory_offset,
+            _type: Default::default(),
+        }
     }
 }
