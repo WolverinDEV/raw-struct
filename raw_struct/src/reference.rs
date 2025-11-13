@@ -1,8 +1,9 @@
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 use core::{
     self,
     marker::PhantomData,
     mem,
-    slice,
 };
 
 use crate::{
@@ -154,6 +155,7 @@ impl<T: CopyConstructable, M: MemoryView, const N: usize> Reference<[T; N], M> {
             .map_err(|err| err.into_access_error())
     }
 
+    #[cfg(feature = "alloc")]
     pub fn read_elements(&self) -> Result<Vec<T>, M::AccessError> {
         let mut buffer = Vec::new();
         unsafe {
@@ -161,7 +163,10 @@ impl<T: CopyConstructable, M: MemoryView, const N: usize> Reference<[T; N], M> {
 
             self.memory.read_memory(
                 self.memory_offset,
-                slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut u8, N * mem::size_of::<T>()),
+                core::slice::from_raw_parts_mut(
+                    buffer.as_mut_ptr() as *mut u8,
+                    N * mem::size_of::<T>(),
+                ),
             )?;
 
             buffer.set_len(N);
@@ -177,6 +182,7 @@ impl<T: ViewableSized, M: MemoryView, const N: usize> Reference<[T; N], M> {
         Reference::new(&self.memory, self.memory_offset + element_offset)
     }
 
+    #[cfg(feature = "alloc")]
     pub fn reference_elements(&self) -> Vec<Reference<T, &M>> {
         let mut buffer = Vec::new();
         buffer.reserve_exact(N);
@@ -193,6 +199,7 @@ impl<T: ViewableSized, M: MemoryView, const N: usize> Reference<[T; N], M> {
         Copy::<T>::read_from_memory(&self.memory, self.memory_offset + element_offset)
     }
 
+    #[cfg(feature = "alloc")]
     pub fn copy_elements(&self) -> Result<Vec<Copy<T>>, M::AccessError> {
         let mut buffer = Vec::new();
         buffer.reserve_exact(N);

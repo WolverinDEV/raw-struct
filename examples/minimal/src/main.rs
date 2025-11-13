@@ -8,8 +8,6 @@ use raw_struct::{
     raw_struct,
     Copy,
     FromMemoryView,
-    MemoryView,
-    MemoryViewDereferenceable,
     Reference,
     ViewableSized,
 };
