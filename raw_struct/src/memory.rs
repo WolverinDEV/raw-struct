@@ -55,7 +55,27 @@ impl MemoryView for &[u8] {
     }
 }
 
-/// Decode an object from memory view
+pub trait MemoryViewDereferenceable: MemoryView {
+    fn dereference(&self, address: u64) -> Result<u64, Self::AccessError>;
+}
+
+impl<M: MemoryViewDereferenceable> MemoryViewDereferenceable for &M {
+    fn dereference(&self, address: u64) -> Result<u64, Self::AccessError> {
+        M::dereference(&self, address)
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl<M: ?Sized + MemoryViewDereferenceable> MemoryViewDereferenceable for alloc::sync::Arc<M> {
+    fn dereference(&self, address: u64) -> Result<u64, Self::AccessError> {
+        M::dereference(&self, address)
+    }
+}
+
+/// Decode an object from memory view.
+///
+/// Note:
+/// The decoded object may be different in memory representation and size then the original.
 pub trait FromMemoryView: Sized {
     type DecodeError;
 
@@ -68,7 +88,7 @@ pub trait FromMemoryView: Sized {
 }
 
 /// Marker trait for types that can be trivially constructed by copying their
-/// underlying data.
+/// underlying data. It can also be assumed, that the size of a CopyConstructable is the actual binary object size.
 ///
 /// For types implementing this trait:
 /// - [`FromMemoryView`] is automatically implemented.
@@ -96,6 +116,7 @@ impl<T: CopyConstructable> FromMemoryView for T {
     }
 }
 
+impl<T1: CopyConstructable, T2: CopyConstructable> CopyConstructable for (T1, T2) {}
 impl<T: CopyConstructable, const N: usize> CopyConstructable for [T; N] {}
 
 impl CopyConstructable for u8 {}

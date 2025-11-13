@@ -7,6 +7,7 @@ use crate::CopyConstructable;
 
 pub trait Viewable {
     fn name() -> &'static str;
+    // fn fields() -> &'static [&'static dyn ViewableField];
 }
 
 pub trait ViewableSized: Viewable {
@@ -31,13 +32,18 @@ pub trait ViewableExtends<T> {}
 // Every type extends itself
 impl<T> ViewableExtends<T> for T {}
 
-pub struct ViewableField<V, T> {
+pub trait ViewableField {
+    fn name(&self) -> &'static str;
+    fn offset(&self) -> u64;
+}
+
+pub struct TypedViewableField<V, T> {
     name: &'static str,
     offset_fn: &'static dyn Fn() -> u64,
     _type: PhantomData<(V, T)>,
 }
 
-impl<V, T> ViewableField<V, T> {
+impl<V, T> TypedViewableField<V, T> {
     pub const fn define(name: &'static str, offset_fn: &'static dyn Fn() -> u64) -> Self {
         Self {
             name,
@@ -45,12 +51,14 @@ impl<V, T> ViewableField<V, T> {
             _type: PhantomData {},
         }
     }
+}
 
-    pub const fn name(&self) -> &'static str {
+impl<V, T> ViewableField for TypedViewableField<V, T> {
+    fn name(&self) -> &'static str {
         self.name
     }
 
-    pub fn offset(&self) -> u64 {
+    fn offset(&self) -> u64 {
         (self.offset_fn)()
     }
 }

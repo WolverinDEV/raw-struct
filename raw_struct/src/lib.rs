@@ -15,6 +15,7 @@ pub use memory::{
     CopyConstructable,
     FromMemoryView,
     MemoryView,
+    MemoryViewDereferenceable,
 };
 
 mod reference;
@@ -30,6 +31,7 @@ mod view;
 pub use view::{
     Viewable,
     ViewableExtends,
+    TypedViewableField,
     ViewableField,
     ViewableSized,
 };

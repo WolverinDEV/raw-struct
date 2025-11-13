@@ -170,7 +170,7 @@ fn generate_field_constants(resolver: &Path, fields: &[(FieldArgs, Field)]) -> R
         result.push(quote! {
             #(#attrs)*
             #[allow(non_upper_case_globals)]
-            #vis const #ident: &::raw_struct::ViewableField<Self, #ty> = &::raw_struct::ViewableField::define(#ident_str, &|| {
+            #vis const #ident: &::raw_struct::TypedViewableField<Self, #ty> = &::raw_struct::TypedViewableField::define(#ident_str, &|| {
                 #resolver(#offset) as u64
             });
         });

@@ -8,6 +8,8 @@ use raw_struct::{
     raw_struct,
     Copy,
     FromMemoryView,
+    MemoryView,
+    MemoryViewDereferenceable,
     Reference,
     ViewableSized,
 };
@@ -26,18 +28,24 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     {
         let object = Reference::<MyStruct, _>::new(memory.as_slice(), 0x00);
-        println!("field_a = {:X}", object.field_a()?);
-        println!("field_b = {:X}", object.field_b()?);
+        println!("field_a = {:X}", object.read_field(MyStruct::field_a)?);
+        println!("field_b = {:X}", object.read_field(MyStruct::field_b)?);
 
         let object = object.cast::<MyStructExt>();
-        println!("ext_field_a = {:X}", object.ext_field_a()?);
-        println!("field_base = {:X}", object.field_base()?);
+        println!(
+            "ext_field_a = {:X}",
+            object.read_field(MyStructExt::ext_field_a)?
+        );
+        println!(
+            "field_base = {:X}",
+            object.read_field(MyStructExt::ext_field_a)?
+        );
     }
 
     {
         let object = Copy::<MyStruct>::read_from_memory(&memory.as_slice(), 0x00)?;
-        println!("field_a = {:X}", object.field_a()?);
-        println!("field_b = {:X}", object.field_b()?);
+        println!("field_a = {:X}", object.read_field(MyStruct::field_a)?);
+        println!("field_b = {:X}", object.read_field(MyStruct::field_b)?);
     }
 
     Ok(())
@@ -56,13 +64,12 @@ struct MyStruct {
     #[field(offset = 0x04)]
     pub field_b: u32,
 
-    /// Showcasing the custom getter name
-    #[field(offset = 0x08, getter = "get_field_c")]
+    #[field(offset = 0x08)]
     pub field_c: [u8; 0x8],
 
     /// Sized array of other raw_structs
     #[field(offset = 0x10)]
-    pub field_d: Ptr64<[Copy<MyArrayElement>; 0x20]>,
+    pub field_d: Ptr64<[MyArrayElement; 0x20]>,
 
     /// Array to another copyable
     #[field(offset = 0x10)]
@@ -70,7 +77,7 @@ struct MyStruct {
 
     /// Advanced array to other raw_structs
     #[field(offset = 0x18)]
-    pub field_f: Ptr64<[Copy<MyStruct>]>,
+    pub field_f: Ptr64<[MyStruct]>,
 
     /// Advanced array to other raw_structs
     #[field(offset = 0x18)]
@@ -81,7 +88,7 @@ struct MyStruct {
 }
 
 #[raw_struct]
-struct MyStructBase<T: FromMemoryView> {
+struct MyStructBase<T: FromMemoryView + 'static> {
     #[field(offset = 0x00)]
     pub field_base: T,
 }

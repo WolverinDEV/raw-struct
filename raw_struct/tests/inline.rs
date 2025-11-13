@@ -21,5 +21,12 @@ fn test_inline() {
     memory[8..12].copy_from_slice(&0xDEADBEEFu32.to_le_bytes());
 
     let object = Copy::<A>::new(memory);
-    assert_eq!(object.val_b().unwrap().value().unwrap(), 0xDEADBEEF);
+    assert_eq!(
+        object
+            .read_field(A::val_b)
+            .unwrap()
+            .read_field(B::value)
+            .unwrap(),
+        0xDEADBEEF
+    );
 }

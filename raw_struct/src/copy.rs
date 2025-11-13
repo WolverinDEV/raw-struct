@@ -1,4 +1,5 @@
 use core::{
+    convert::Infallible,
     marker,
     mem::{
         self,
@@ -57,9 +58,7 @@ impl<V: ViewableSized> Copy<V> {
         memory: &M,
         offset: u64,
     ) -> Result<Self, M::AccessError> {
-        Ok(Self::new(
-            V::Memory::read_object(memory, offset).map_err(|err| err.into_access_error())?,
-        ))
+        Self::read_object(memory, offset).map_err(|err| err.into_access_error())
     }
 }
 
@@ -77,36 +76,13 @@ impl<V: ViewableSized> DerefMut for Copy<V> {
     }
 }
 
-// impl<T> Clone for Copy<T>
-// where
-//     T: SizedViewable,
-//     T::Implementation<CopyMemory<T::Memory>>: Clone,
-// {
-//     fn clone(&self) -> Self {
-//         Self {
-//             inner: self.inner.clone(),
-//         }
-//     }
-// }
+impl<V: ViewableSized> FromMemoryView for Copy<V> {
+    type DecodeError = Infallible;
 
-// impl<T> marker::Copy for Copy<T>
-// where
-//     T: SizedViewable,
-//     T::Implementation<CopyMemory<T::Memory>>: marker::Copy,
-// {
-// }
-
-// impl<T> CopyConstructable for Copy<T>
-// where
-//     T: SizedViewable,
-//     T::Implementation<CopyMemory<T::Memory>>: marker::Copy,
-// {
-// }
-
-// impl<T: SizedViewable> Deref for Copy<T> {
-//     type Target = T::Implementation<CopyMemory<T::Memory>>;
-
-//     fn deref(&self) -> &Self::Target {
-//         &self.inner
-//     }
-// }
+    fn read_object<M: MemoryView>(
+        view: &M,
+        offset: u64,
+    ) -> Result<Self, crate::MemoryDecodeError<M::AccessError, Self::DecodeError>> {
+        Ok(Self::new(V::Memory::read_object(view, offset)?))
+    }
+}

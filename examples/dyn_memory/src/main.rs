@@ -1,14 +1,13 @@
 use std::{
     self,
     error::Error,
-    marker,
 };
 
 use raw_struct::{
     raw_struct,
     Copy,
+    CopyConstructable,
     CopyMemory,
-    FromMemoryView,
     ViewableSized,
 };
 
@@ -20,14 +19,23 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         "Memory size: 0x{:X}",
         <Container::<u64> as ViewableSized>::memory_size()
     );
-    println!("Vat a = 0x{:X}", object.var_a()?);
-    println!("Inner = 0x{:X}", object.inner()?);
-    println!("Vat b = 0x{:X}", object.var_b()?);
+    println!(
+        "Vat a = 0x{:X}",
+        object.read_field(Container::<u64>::var_a)?
+    );
+    println!(
+        "Inner = 0x{:X}",
+        object.read_field(Container::<u64>::inner)?
+    );
+    println!(
+        "Vat b = 0x{:X}",
+        object.read_field(Container::<u64>::var_b)?
+    );
     Ok(())
 }
 
 #[raw_struct(memory = "([u8; 0x10], T)")]
-struct Container<T: marker::Copy + FromMemoryView> {
+struct Container<T: CopyConstructable + 'static> {
     #[field(offset = 0x00)]
     pub var_a: u64,
 
