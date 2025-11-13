@@ -234,6 +234,12 @@ pub fn raw_struct(attr: TokenStream, input: TokenStream) -> Result<TokenStream> 
     let (impl_generics, ty_generics, where_clause) = target.generics.split_for_impl();
 
     let struct_def = self::generate_struct_definition(&args, &target)?;
+    let field_names = target
+        .fields
+        .iter()
+        .filter_map(|field| field.ident.clone())
+        .map(|ident| quote! { Self:: #ident })
+        .collect::<Vec<_>>();
 
     let sized_impl = args.memory.map(|memory| quote! {
         impl #impl_generics ::raw_struct::ViewableSized for #struct_name #ty_generics #where_clause {
@@ -251,6 +257,10 @@ pub fn raw_struct(attr: TokenStream, input: TokenStream) -> Result<TokenStream> 
         impl #impl_generics ::raw_struct::Viewable for #struct_name #ty_generics #where_clause {
             fn name() -> &'static str {
                 #struct_name_str
+            }
+
+            fn fields() -> &'static [&'static dyn ::raw_struct::ViewableField] {
+                &[ #(#field_names,)* ]
             }
         }
 

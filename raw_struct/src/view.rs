@@ -7,7 +7,7 @@ use crate::CopyConstructable;
 
 pub trait Viewable {
     fn name() -> &'static str;
-    // fn fields() -> &'static [&'static dyn ViewableField];
+    fn fields() -> &'static [&'static dyn ViewableField];
 }
 
 pub trait ViewableSized: Viewable {
