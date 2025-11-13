@@ -19,7 +19,7 @@ struct MyStruct {
     #[field(offset = 0x04)]
     pub field_b: u32,
 
-    #[field(offset = 0x08, getter = "get_field_c")]
+    #[field(offset = 0x08)]
     pub field_c: [u8; 0x8],
 }
 ```
@@ -29,14 +29,14 @@ To reference the declared struct in memory you can ether do so by `Reference` or
 let memory = [0u8; 0x10];
 {
     let object = Reference::<MyStruct>::new(0x00, Arc::new(memory.clone()));
-    println!("field_a = {}", object.field_a()?);
-    println!("field_b = {}", object.field_b()?);
+    println!("field_a = {:X}", object.read_field(MyStruct::field_a)?);
+    println!("field_b = {:X}", object.read_field(MyStruct::field_b)?);
 }
 
 {
     let object = Copy::<MyStruct>::new(memory);
-    println!("field_a = {}", object.field_a()?);
-    println!("field_b = {}", object.field_b()?);
+    println!("field_a = {:X}", object.read_field(MyStruct::field_a)?);
+    println!("field_b = {:X}", object.read_field(MyStruct::field_b)?);
 }
 ```
 
